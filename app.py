@@ -53,7 +53,7 @@ MOVIE_QUOTES = [
 
 st.markdown("""
 <style>
-/* ── System font stack (Apple) ── */
+/* ── System font stack ── */
 * {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
                  "Segoe UI", Helvetica, Arial, sans-serif !important;
@@ -64,26 +64,34 @@ st.markdown("""
 #MainMenu, footer, header, .stDeployButton { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
 
-/* ── Page background ── */
+/* ── Force light mode ── */
 .stApp {
-    background: linear-gradient(135deg, #f0f4ff 0%, #fafafa 50%, #f5f0ff 100%);
+    background: #f7f8fc !important;
+    color: #1a1a1a !important;
     min-height: 100vh;
 }
 
-/* ── Acrylic / frosted glass card ── */
+/* Force all Streamlit text to be dark */
+.stApp, .stApp p, .stApp span, .stApp label, .stApp div,
+.stMarkdown, .stMarkdown p, .stMarkdown span,
+[data-testid="stText"], [data-testid="stMarkdownContainer"],
+[data-testid="stMarkdownContainer"] p {
+    color: #1a1a1a !important;
+}
+
+/* ── Acrylic card ── */
 .acrylic {
-    background: rgba(255, 255, 255, 0.65);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    border: 1px solid #e5e7eb;
     border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08),
-                0 1px 0 rgba(255,255,255,0.9) inset;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
     padding: 40px;
     margin: 0 auto;
 }
 
-/* ── Centered symmetric container ── */
+/* ── Centered container ── */
 .main-container {
     max-width: 780px;
     margin: 0 auto;
@@ -95,7 +103,7 @@ st.markdown("""
     font-size: 42px;
     font-weight: 700;
     letter-spacing: -1.5px;
-    color: #1a1a1a;
+    color: #111827 !important;
     text-align: center;
     margin-bottom: 8px;
     line-height: 1.15;
@@ -103,14 +111,15 @@ st.markdown("""
 
 .hero-sub {
     font-size: 17px;
-    color: #6b7280;
+    color: #6b7280 !important;
     text-align: center;
     margin-bottom: 40px;
     font-weight: 400;
+    font-style: italic;
     letter-spacing: -0.2px;
 }
 
-/* ── Feature chips (3-column symmetric) ── */
+/* ── Feature chips ── */
 .feature-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -119,40 +128,44 @@ st.markdown("""
 }
 
 .feature-chip {
-    background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(0,0,0,0.07);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
     border-radius: 14px;
     padding: 18px 16px;
     text-align: center;
 }
 
-.feature-chip .icon { font-size: 24px; display: block; margin-bottom: 8px; }
+.feature-chip .icon { font-size: 22px; display: block; margin-bottom: 8px; }
 .feature-chip .label {
     font-size: 13px;
     font-weight: 600;
-    color: #111827;
+    color: #111827 !important;
     display: block;
     margin-bottom: 4px;
 }
-.feature-chip .desc { font-size: 12px; color: #6b7280; line-height: 1.4; }
+.feature-chip .desc { font-size: 12px; color: #6b7280 !important; line-height: 1.4; }
 
 /* ── Input field ── */
 .stTextInput > div > div > input {
-    border: 1.5px solid rgba(0,0,0,0.12) !important;
+    border: 1.5px solid #d1d5db !important;
     border-radius: 12px !important;
     padding: 14px 16px !important;
     font-size: 16px !important;
-    background: rgba(255,255,255,0.8) !important;
+    background: #ffffff !important;
+    color: #111827 !important;
     transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
     box-shadow: none !important;
+}
+.stTextInput > div > div > input::placeholder {
+    color: #9ca3af !important;
 }
 .stTextInput > div > div > input:focus {
     border-color: #2563EB !important;
     box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
-    background: rgba(255,255,255,1) !important;
+    background: #ffffff !important;
 }
 
-/* ── Primary button (Apple blue) ── */
+/* ── Primary button ── */
 .stButton > button[kind="primary"] {
     background: #2563EB !important;
     color: white !important;
@@ -161,7 +174,6 @@ st.markdown("""
     padding: 14px 28px !important;
     font-size: 16px !important;
     font-weight: 600 !important;
-    letter-spacing: -0.2px !important;
     transition: all 0.2s ease !important;
     box-shadow: 0 2px 8px rgba(37,99,235,0.3) !important;
 }
@@ -170,16 +182,12 @@ st.markdown("""
     box-shadow: 0 4px 16px rgba(37,99,235,0.4) !important;
     transform: translateY(-1px) !important;
 }
-.stButton > button[kind="primary"]:active {
-    transform: translateY(0) !important;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.3) !important;
-}
 
-/* ── Secondary buttons (example chips) ── */
+/* ── Secondary buttons ── */
 .stButton > button[kind="secondary"] {
-    background: rgba(255,255,255,0.7) !important;
+    background: #ffffff !important;
     color: #374151 !important;
-    border: 1px solid rgba(0,0,0,0.1) !important;
+    border: 1px solid #d1d5db !important;
     border-radius: 20px !important;
     font-size: 13px !important;
     font-weight: 500 !important;
@@ -187,7 +195,7 @@ st.markdown("""
     transition: all 0.15s ease !important;
 }
 .stButton > button[kind="secondary"]:hover {
-    background: rgba(37,99,235,0.06) !important;
+    background: #eff6ff !important;
     border-color: #2563EB !important;
     color: #2563EB !important;
 }
@@ -199,17 +207,13 @@ st.markdown("""
     justify-content: center;
 }
 .stRadio label {
-    background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(0,0,0,0.09);
-    border-radius: 20px;
-    padding: 6px 18px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
+    color: #374151 !important;
+}
+.stRadio label span {
+    color: #374151 !important;
 }
 
-/* ── Stats metrics row ── */
+/* ── Stats row ── */
 .stats-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
@@ -217,8 +221,8 @@ st.markdown("""
     margin: 24px 0;
 }
 .stat-card {
-    background: rgba(255,255,255,0.6);
-    border: 1px solid rgba(0,0,0,0.07);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
     border-radius: 14px;
     padding: 16px;
     text-align: center;
@@ -226,21 +230,21 @@ st.markdown("""
 .stat-num {
     font-size: 26px;
     font-weight: 700;
-    color: #111827;
+    color: #111827 !important;
     letter-spacing: -1px;
 }
 .stat-label {
     font-size: 11px;
-    color: #9ca3af;
+    color: #6b7280 !important;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-top: 2px;
 }
 
-/* ── Movie quote box ── */
+/* ── Quote box ── */
 .quote-box {
-    background: rgba(37,99,235,0.06);
+    background: #eff6ff;
     border-left: 3px solid #2563EB;
     border-radius: 0 12px 12px 0;
     padding: 20px 24px;
@@ -249,42 +253,50 @@ st.markdown("""
 .quote-text {
     font-size: 18px;
     font-style: italic;
-    color: #1f2937;
+    color: #1f2937 !important;
     font-weight: 500;
-    letter-spacing: -0.3px;
     margin-bottom: 6px;
 }
 .quote-source {
     font-size: 13px;
-    color: #6b7280;
+    color: #6b7280 !important;
     font-weight: 500;
 }
 
 /* ── Section divider ── */
 .section-divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(0,0,0,0.08), transparent);
+    background: #e5e7eb;
     margin: 32px 0;
 }
 
 /* ── Report container ── */
 .report-wrapper {
-    background: rgba(255,255,255,0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.9);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
     border-radius: 20px;
     padding: 40px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+}
+.report-wrapper p, .report-wrapper li, .report-wrapper td,
+.report-wrapper th, .report-wrapper h1, .report-wrapper h2,
+.report-wrapper h3, .report-wrapper h4 {
+    color: #1a1a1a !important;
 }
 
-/* ── Status box ── */
+/* ── Status widget text ── */
 [data-testid="stStatusWidget"] {
     border-radius: 16px !important;
-    border: 1px solid rgba(0,0,0,0.08) !important;
+    border: 1px solid #e5e7eb !important;
+    background: #ffffff !important;
+}
+[data-testid="stStatusWidget"] p,
+[data-testid="stStatusWidget"] span,
+[data-testid="stStatusWidget"] div {
+    color: #374151 !important;
 }
 
-/* ── Success / error / info ── */
+/* ── Alerts ── */
 .stAlert {
     border-radius: 12px !important;
     border: none !important;
@@ -295,13 +307,13 @@ st.markdown("""
     border-radius: 10px !important;
     font-weight: 500 !important;
     font-size: 14px !important;
-    border: 1.5px solid rgba(0,0,0,0.12) !important;
-    background: rgba(255,255,255,0.8) !important;
+    border: 1.5px solid #d1d5db !important;
+    background: #ffffff !important;
     color: #374151 !important;
     transition: all 0.15s ease !important;
 }
 .stDownloadButton > button:hover {
-    background: white !important;
+    background: #ffffff !important;
     border-color: #2563EB !important;
     color: #2563EB !important;
 }
@@ -310,6 +322,11 @@ st.markdown("""
 .stProgress > div > div {
     background: #2563EB !important;
     border-radius: 4px !important;
+}
+
+/* ── Caption text ── */
+.stCaption, [data-testid="stCaptionContainer"] {
+    color: #6b7280 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -336,25 +353,25 @@ st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
 # Hero
 st.markdown("""
-<div class="hero-title">🍒 Cherry Picker</div>
-<div class="hero-sub">Real-time arXiv intelligence — 10-minute literature review</div>
+<div class="hero-title">Cherry Picker</div>
+<div class="hero-sub">hope other lazy researchers will like this too</div>
 """, unsafe_allow_html=True)
 
 # Feature chips (3-column symmetric)
 st.markdown("""
 <div class="feature-row">
   <div class="feature-chip">
-    <span class="icon">📡</span>
+    <span class="icon">1</span>
     <span class="label">Real-time arXiv</span>
     <span class="desc">Papers published this week, not from a stale training set</span>
   </div>
   <div class="feature-chip">
-    <span class="icon">🤖</span>
+    <span class="icon">2</span>
     <span class="label">Structured Extraction</span>
     <span class="desc">Every claim traced to a specific paper and date</span>
   </div>
   <div class="feature-chip">
-    <span class="icon">📊</span>
+    <span class="icon">3</span>
     <span class="label">Cross-paper Insights</span>
     <span class="desc">Trend analysis that ChatGPT cannot replicate</span>
   </div>
@@ -401,7 +418,7 @@ st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 _, btn_col, _ = st.columns([1, 3, 1])
 with btn_col:
     analyze_clicked = st.button(
-        "🔍  Analyze",
+        "Analyze",
         type="primary",
         use_container_width=True,
     )
@@ -443,7 +460,7 @@ if analyze_clicked and topic.strip():
     display_name = query_result["display_name"]
     arxiv_query  = query_result["arxiv_query"]
 
-    st.success(f"✅ Searching arXiv for: **{display_name}**")
+    st.success(f"Searching arXiv for: **{display_name}**")
     st.caption(f"`{arxiv_query}`")
 
     # Random movie quote while loading
@@ -458,14 +475,14 @@ if analyze_clicked and topic.strip():
     try:
         with st.status("Running analysis...", expanded=True) as status:
 
-            st.write("📡 Fetching papers from arXiv...")
+            st.write("Fetching papers from arXiv...")
             fetch_result = fetch_papers_adaptive(arxiv_query, intent)
             papers = fetch_result["papers"]
             count  = fetch_result["paper_count"]
-            st.write(f"✅ Found **{count}** papers (window: {fetch_result['days_used']}d)")
+            st.write(f"Found **{count}** papers (window: {fetch_result['days_used']}d)")
 
             if fetch_result["window_expanded"]:
-                st.write(f"⚠️ Expanded to {fetch_result['days_used']}d to find enough papers.")
+                st.write(f"Expanded to {fetch_result['days_used']}d to find enough papers.")
 
             if not papers:
                 status.update(label="No papers found", state="error")
@@ -474,7 +491,7 @@ if analyze_clicked and topic.strip():
             # --- Enforce a limit of 30 diverse papers ---
             max_limit = 30
             if len(papers) > max_limit:
-                st.write(f"🔍 Filtering to {max_limit} most diverse papers (down from {len(papers)})...")
+                st.write(f"Filtering to {max_limit} most diverse papers (from {len(papers)})...")
                 import re
                 
                 stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "about", "as", "of", "is", "are", "was", "were", "be", "been", "that", "which", "this", "these", "those", "from", "can", "has", "have", "had", "not"}
@@ -507,7 +524,7 @@ if analyze_clicked and topic.strip():
             # --------------------------------------------
 
             # Extraction (parallel)
-            st.write("🤖 Extracting structured data...")
+            st.write("Extracting structured data...")
             extracted = []
             progress  = st.progress(0, text="Extracting...")
 
@@ -526,22 +543,22 @@ if analyze_clicked and topic.strip():
                     progress.progress(done / len(papers), text=f"Extracted {done}/{len(papers)}")
 
             progress.empty()
-            st.write(f"✅ Extracted **{len(extracted)}** / {len(papers)} papers")
+            st.write(f"Extracted **{len(extracted)}** / {len(papers)} papers")
 
             if not extracted:
                 status.update(label="Extraction failed", state="error")
                 st.stop()
 
-            st.write("💾 Storing to vector database...")
+            st.write("Storing to vector database...")
             store_papers_to_db(extracted)
 
-            st.write("📊 Scoring credibility...")
+            st.write("Scoring credibility...")
             scored = [score_paper_credibility(p, display_name) for p in extracted]
             avg_credibility = round(
                 sum(p.get("credibility_score", 0) for p in scored) / len(scored)
             ) if scored else 0
 
-            st.write("📝 Generating report...")
+            st.write("Generating report...")
             llm_deep = _make_llm(deep=True)
             with ThreadPoolExecutor(max_workers=3) as ex:
                 fut_report = ex.submit(generate_report, extracted)
@@ -565,7 +582,7 @@ if analyze_clicked and topic.strip():
             gaps_md = render_extrapolated_gaps_markdown(gaps_data)
             report  = inject_section_four(report, gaps_md)
             save_report(report, extracted)
-            st.write("✅ Report generated!")
+            st.write("Report generated.")
             status.update(label="Analysis complete!", state="complete")
 
         # Store results
@@ -579,7 +596,7 @@ if analyze_clicked and topic.strip():
         }
 
     except Exception as e:
-        st.error(f"❌ Pipeline error: {e}")
+        st.error(f"Pipeline error: {e}")
         st.info("Try a different topic or extend the time window.")
 
 # ── Report display ────────────────────────────────────────────────────────────
@@ -614,7 +631,7 @@ if "report" in st.session_state and st.session_state["report"]:
 
     # Report in acrylic card
     st.markdown('<div class="report-wrapper">', unsafe_allow_html=True)
-    st.markdown(f"### 📄 {q.get('display_name', 'Research Report')}")
+    st.markdown(f"### {q.get('display_name', 'Research Report')}")
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
     st.markdown(st.session_state["report"])
     st.markdown('</div>', unsafe_allow_html=True)
