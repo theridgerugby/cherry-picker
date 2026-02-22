@@ -1,86 +1,419 @@
-# app.py — Streamlit 主入口：arXiv Research Intelligence Pipeline
+# app.py — arXiv Research Intelligence | Apple-inspired UI
 
 import os
+import random
 import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Streamlit Cloud injects secrets via st.secrets; local runs use .env
 if "GOOGLE_API_KEY" in st.secrets:
     os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# ── Page config (must be first st call) ───────────────────────────────────────
+# ── Page config ───────────────────────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="arXiv Research Intelligence",
-    page_icon="🔬",
+    page_title="Cherry Picker · Research Intelligence",
+    page_icon="🍒",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
+# ── Movie quotes ──────────────────────────────────────────────────────────────
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+MOVIE_QUOTES = [
+    ("The greatest teacher, failure is.", "Yoda — Star Wars: The Last Jedi"),
+    ("It's not who I am underneath, but what I do that defines me.", "Batman Begins"),
+    ("You can't handle the truth!", "A Few Good Men"),
+    ("Why so serious?", "The Dark Knight"),
+    ("To infinity and beyond.", "Buzz Lightyear — Toy Story"),
+    ("Just keep swimming.", "Dory — Finding Nemo"),
+    ("After all this time? Always.", "Snape — Harry Potter"),
+    ("I am inevitable.", "Thanos — Avengers: Endgame"),
+    ("The stuff that dreams are made of.", "The Maltese Falcon"),
+    ("You is kind, you is smart, you is important.", "The Help"),
+    ("Life is like a box of chocolates.", "Forrest Gump"),
+    ("Get busy living, or get busy dying.", "The Shawshank Redemption"),
+    ("With great power comes great responsibility.", "Spider-Man"),
+    ("I feel the need — the need for speed.", "Top Gun"),
+    ("There is no spoon.", "The Matrix"),
+    ("Elementary, my dear Watson.", "The Adventures of Sherlock Holmes"),
+    ("To boldly go where no man has gone before.", "Star Trek"),
+    ("I'll be back.", "The Terminator"),
+    ("Roads? Where we're going, we don't need roads.", "Back to the Future"),
+    ("We're gonna need a bigger boat.", "Jaws"),
+    ("You had me at hello.", "Jerry Maguire"),
+    ("Every passing minute is another chance to turn it all around.", "Vanilla Sky"),
+    ("A dream is a wish your heart makes.", "Cinderella"),
+    ("Hakuna Matata — it means no worries.", "The Lion King"),
+    ("Do, or do not. There is no try.", "Yoda — The Empire Strikes Back"),
+]
 
-with st.sidebar:
-    st.title("🔬 arXiv Research Intelligence")
-    st.caption("10-minute literature review")
+# ── Apple-inspired CSS with acrylic effect ────────────────────────────────────
 
-    st.divider()
+st.markdown("""
+<style>
+/* ── System font stack (Apple) ── */
+* {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                 "Segoe UI", Helvetica, Arial, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+}
 
-    with st.expander("ℹ️ About"):
-        st.markdown(
-            "- **Fetch & analyze** recent arXiv papers on any topic\n"
-            "- **Auto-generate** structured comparison reports with "
-            "trend analysis, skill maps, and reading orders\n"
-            "- **Adaptive search** expands the time window until enough "
-            "papers are found"
-        )
+/* ── Hide Streamlit chrome ── */
+#MainMenu, footer, header, .stDeployButton { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 
+/* ── Page background ── */
+.stApp {
+    background: linear-gradient(135deg, #f0f4ff 0%, #fafafa 50%, #f5f0ff 100%);
+    min-height: 100vh;
+}
+
+/* ── Acrylic / frosted glass card ── */
+.acrylic {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08),
+                0 1px 0 rgba(255,255,255,0.9) inset;
+    padding: 40px;
+    margin: 0 auto;
+}
+
+/* ── Centered symmetric container ── */
+.main-container {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 48px 24px;
+}
+
+/* ── Hero title ── */
+.hero-title {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    color: #1a1a1a;
+    text-align: center;
+    margin-bottom: 8px;
+    line-height: 1.15;
+}
+
+.hero-sub {
+    font-size: 17px;
+    color: #6b7280;
+    text-align: center;
+    margin-bottom: 40px;
+    font-weight: 400;
+    letter-spacing: -0.2px;
+}
+
+/* ── Feature chips (3-column symmetric) ── */
+.feature-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 36px;
+}
+
+.feature-chip {
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: center;
+}
+
+.feature-chip .icon { font-size: 24px; display: block; margin-bottom: 8px; }
+.feature-chip .label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    display: block;
+    margin-bottom: 4px;
+}
+.feature-chip .desc { font-size: 12px; color: #6b7280; line-height: 1.4; }
+
+/* ── Input field ── */
+.stTextInput > div > div > input {
+    border: 1.5px solid rgba(0,0,0,0.12) !important;
+    border-radius: 12px !important;
+    padding: 14px 16px !important;
+    font-size: 16px !important;
+    background: rgba(255,255,255,0.8) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    box-shadow: none !important;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
+    background: rgba(255,255,255,1) !important;
+}
+
+/* ── Primary button (Apple blue) ── */
+.stButton > button[kind="primary"] {
+    background: #2563EB !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 14px 28px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.2px !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3) !important;
+}
+.stButton > button[kind="primary"]:hover {
+    background: #1d4ed8 !important;
+    box-shadow: 0 4px 16px rgba(37,99,235,0.4) !important;
+    transform: translateY(-1px) !important;
+}
+.stButton > button[kind="primary"]:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3) !important;
+}
+
+/* ── Secondary buttons (example chips) ── */
+.stButton > button[kind="secondary"] {
+    background: rgba(255,255,255,0.7) !important;
+    color: #374151 !important;
+    border: 1px solid rgba(0,0,0,0.1) !important;
+    border-radius: 20px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    padding: 6px 16px !important;
+    transition: all 0.15s ease !important;
+}
+.stButton > button[kind="secondary"]:hover {
+    background: rgba(37,99,235,0.06) !important;
+    border-color: #2563EB !important;
+    color: #2563EB !important;
+}
+
+/* ── Radio buttons ── */
+.stRadio > div {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+.stRadio label {
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(0,0,0,0.09);
+    border-radius: 20px;
+    padding: 6px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+/* ── Stats metrics row ── */
+.stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 12px;
+    margin: 24px 0;
+}
+.stat-card {
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+}
+.stat-num {
+    font-size: 26px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: -1px;
+}
+.stat-label {
+    font-size: 11px;
+    color: #9ca3af;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+/* ── Movie quote box ── */
+.quote-box {
+    background: rgba(37,99,235,0.06);
+    border-left: 3px solid #2563EB;
+    border-radius: 0 12px 12px 0;
+    padding: 20px 24px;
+    margin: 24px 0;
+}
+.quote-text {
+    font-size: 18px;
+    font-style: italic;
+    color: #1f2937;
+    font-weight: 500;
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+}
+.quote-source {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* ── Section divider ── */
+.section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,0,0,0.08), transparent);
+    margin: 32px 0;
+}
+
+/* ── Report container ── */
+.report-wrapper {
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}
+
+/* ── Status box ── */
+[data-testid="stStatusWidget"] {
+    border-radius: 16px !important;
+    border: 1px solid rgba(0,0,0,0.08) !important;
+}
+
+/* ── Success / error / info ── */
+.stAlert {
+    border-radius: 12px !important;
+    border: none !important;
+}
+
+/* ── Download buttons ── */
+.stDownloadButton > button {
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    border: 1.5px solid rgba(0,0,0,0.12) !important;
+    background: rgba(255,255,255,0.8) !important;
+    color: #374151 !important;
+    transition: all 0.15s ease !important;
+}
+.stDownloadButton > button:hover {
+    background: white !important;
+    border-color: #2563EB !important;
+    color: #2563EB !important;
+}
+
+/* ── Progress bar ── */
+.stProgress > div > div {
+    background: #2563EB !important;
+    border-radius: 4px !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ── Intent mapping ────────────────────────────────────────────────────────────
 
 _INTENT_MAP = {
     "Latest (past 2 weeks)": "latest",
-    "Recent (past month)": "recent",
+    "Recent (past month)":   "recent",
     "Landscape (past 3 months)": "landscape",
 }
 
+_EXAMPLE_TOPICS = [
+    "sparse representation",
+    "multimodal LLM efficiency",
+    "graph neural networks for drug discovery",
+    "reinforcement learning from human feedback",
+    "vision transformers",
+]
 
-# ── Step 1: Topic Input ──────────────────────────────────────────────────────
+# ── Layout: centered symmetric container ─────────────────────────────────────
 
-st.header("What research area are you exploring?")
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
+# Hero
+st.markdown("""
+<div class="hero-title">🍒 Cherry Picker</div>
+<div class="hero-sub">Real-time arXiv intelligence — 10-minute literature review</div>
+""", unsafe_allow_html=True)
+
+# Feature chips (3-column symmetric)
+st.markdown("""
+<div class="feature-row">
+  <div class="feature-chip">
+    <span class="icon">📡</span>
+    <span class="label">Real-time arXiv</span>
+    <span class="desc">Papers published this week, not from a stale training set</span>
+  </div>
+  <div class="feature-chip">
+    <span class="icon">🤖</span>
+    <span class="label">Structured Extraction</span>
+    <span class="desc">Every claim traced to a specific paper and date</span>
+  </div>
+  <div class="feature-chip">
+    <span class="icon">📊</span>
+    <span class="label">Cross-paper Insights</span>
+    <span class="desc">Trend analysis that ChatGPT cannot replicate</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── Acrylic input card ────────────────────────────────────────────────────────
+
+st.markdown('<div class="acrylic">', unsafe_allow_html=True)
+
+# Topic input
+topic_value = st.session_state.get("topic_prefill", "")
 topic = st.text_input(
     "Research topic",
-    placeholder=(
-        "e.g. sparse representation, multimodal LLM efficiency, "
-        "graph neural networks for drug discovery"
-    ),
+    value=topic_value,
+    placeholder="e.g. sparse representation, RLHF, vision transformers...",
     label_visibility="collapsed",
 )
 
+# Example topic chips (symmetric row)
+st.markdown("<div style='margin: 12px 0 4px; font-size:12px; color:#9ca3af; font-weight:500;'>Try an example</div>", unsafe_allow_html=True)
+chip_cols = st.columns(len(_EXAMPLE_TOPICS))
+for i, example in enumerate(_EXAMPLE_TOPICS):
+    with chip_cols[i]:
+        if st.button(example, key=f"chip_{i}"):
+            st.session_state["topic_prefill"] = example
+            st.rerun()
+
+st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+
+# Time window (centered radio)
 time_window = st.radio(
     "Time window",
     options=list(_INTENT_MAP.keys()),
     horizontal=True,
     index=1,
+    label_visibility="collapsed",
 )
 intent = _INTENT_MAP[time_window]
 
-analyze_clicked = st.button("🔍 Analyze", type="primary", use_container_width=True)
+st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
+# Analyze button (full width, centered)
+_, btn_col, _ = st.columns([1, 3, 1])
+with btn_col:
+    analyze_clicked = st.button(
+        "🔍  Analyze",
+        type="primary",
+        use_container_width=True,
+    )
+
+st.markdown('</div>', unsafe_allow_html=True)  # end acrylic card
 
 # ── Pipeline execution ────────────────────────────────────────────────────────
 
 if analyze_clicked and topic.strip():
 
-    # Late imports — only load heavy modules when user clicks Analyze
     from langchain_google_genai import ChatGoogleGenerativeAI
-
-    from config import (
-        GEMINI_MODEL, GEMINI_MODEL_FAST, THINKING_BUDGET, DOMAIN,
-        MIN_PAPERS_FOR_COMPARISON,
-    )
+    from config import GEMINI_MODEL, GEMINI_MODEL_FAST, MIN_PAPERS_FOR_COMPARISON
     from input_validator import validate_user_input, format_rejection_for_ui
     from query_generator import generate_arxiv_query
     from paper_fetcher import fetch_papers_adaptive
@@ -92,10 +425,10 @@ if analyze_clicked and topic.strip():
         render_methodology_matrix, save_report,
     )
 
-    # ── Step 2: Validation ────────────────────────────────────────────────
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
+    # Validation
     llm_fast = _make_llm(deep=False)
-
     validation = validate_user_input(topic, llm_fast)
 
     if not validation["is_valid"]:
@@ -104,71 +437,94 @@ if analyze_clicked and topic.strip():
             st.info(f"💡 **Try:** {validation['suggestion']}")
         st.stop()
 
-    # ── Step 3: Query generation ──────────────────────────────────────────
-
+    # Query generation
     keywords = validation.get("extractable_keywords", [])
     query_result = generate_arxiv_query(topic, keywords, llm_fast)
-
     display_name = query_result["display_name"]
-    arxiv_query = query_result["arxiv_query"]
+    arxiv_query  = query_result["arxiv_query"]
 
     st.success(f"✅ Searching arXiv for: **{display_name}**")
-    st.caption(f"Query: `{arxiv_query}`")
+    st.caption(f"`{arxiv_query}`")
 
-    if query_result.get("low_confidence_warning"):
-        st.warning(query_result["low_confidence_warning"])
-
-    # ── Step 4: Pipeline with progress ────────────────────────────────────
+    # Random movie quote while loading
+    quote, source = random.choice(MOVIE_QUOTES)
+    st.markdown(f"""
+    <div class="quote-box">
+        <div class="quote-text">"{quote}"</div>
+        <div class="quote-source">— {source}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     try:
         with st.status("Running analysis...", expanded=True) as status:
 
-            # 4a — Fetch papers
             st.write("📡 Fetching papers from arXiv...")
             fetch_result = fetch_papers_adaptive(arxiv_query, intent)
             papers = fetch_result["papers"]
-            count = fetch_result["paper_count"]
+            count  = fetch_result["paper_count"]
             st.write(f"✅ Found **{count}** papers (window: {fetch_result['days_used']}d)")
 
             if fetch_result["window_expanded"]:
-                st.write(
-                    f"⚠️ Date range was expanded to {fetch_result['days_used']}d "
-                    "to find enough papers."
-                )
+                st.write(f"⚠️ Expanded to {fetch_result['days_used']}d to find enough papers.")
 
             if not papers:
                 status.update(label="No papers found", state="error")
                 st.stop()
-
-            # 4b — Extract structured data
-            st.write("🤖 Extracting structured data from papers...")
-            extracted = []
-            
-            progress = st.progress(0, text="Extracting...")
-            
-            from concurrent.futures import ThreadPoolExecutor, as_completed
-            
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                future_to_paper = {
-                    executor.submit(extract_paper_info, p, llm_fast): p
-                    for p in papers
-                }
                 
-                completed = 0
-                for future in as_completed(future_to_paper):
-                    completed += 1
+            # --- Enforce a limit of 30 diverse papers ---
+            max_limit = 30
+            if len(papers) > max_limit:
+                st.write(f"🔍 Filtering to {max_limit} most diverse papers (down from {len(papers)})...")
+                import re
+                
+                stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "about", "as", "of", "is", "are", "was", "were", "be", "been", "that", "which", "this", "these", "those", "from", "can", "has", "have", "had", "not"}
+                def get_tokens(p):
+                    text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
+                    return set(re.findall(r'\b[a-z]{3,}\b', text)) - stop_words
+                
+                ptokens = [get_tokens(p) for p in papers]
+                selected_idxs = [0]
+                while len(selected_idxs) < max_limit:
+                    best_i = -1
+                    max_min_dist = -1.0
+                    for i in range(len(papers)):
+                        if i in selected_idxs:
+                            continue
+                        min_dist_to_sel = 1.0
+                        for j in selected_idxs:
+                            inter = len(ptokens[i] & ptokens[j])
+                            union = len(ptokens[i] | ptokens[j])
+                            dist = 1.0 - (inter / union if union > 0 else 0)
+                            if dist < min_dist_to_sel:
+                                min_dist_to_sel = dist
+                        if min_dist_to_sel > max_min_dist:
+                            max_min_dist = min_dist_to_sel
+                            best_i = i
+                    if best_i == -1: break
+                    selected_idxs.append(best_i)
+                
+                papers = [papers[i] for i in selected_idxs]
+            # --------------------------------------------
+
+            # Extraction (parallel)
+            st.write("🤖 Extracting structured data...")
+            extracted = []
+            progress  = st.progress(0, text="Extracting...")
+
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            with ThreadPoolExecutor(max_workers=10) as ex:
+                futures = {ex.submit(extract_paper_info, p, llm_fast): p for p in papers}
+                done = 0
+                for future in as_completed(futures):
+                    done += 1
                     try:
-                        result = future.result()
-                        if result is not None:
-                            extracted.append(result)
+                        r = future.result()
+                        if r is not None:
+                            extracted.append(r)
                     except Exception as e:
-                        print(f"Extraction exception: {e}")
-                    
-                    progress.progress(
-                        completed / len(papers),
-                        text=f"Extracted {completed}/{len(papers)}",
-                    )
-                    
+                        print(f"Extraction error: {e}")
+                    progress.progress(done / len(papers), text=f"Extracted {done}/{len(papers)}")
+
             progress.empty()
             st.write(f"✅ Extracted **{len(extracted)}** / {len(papers)} papers")
 
@@ -176,95 +532,121 @@ if analyze_clicked and topic.strip():
                 status.update(label="Extraction failed", state="error")
                 st.stop()
 
-            # 4c — Store to DB
             st.write("💾 Storing to vector database...")
             store_papers_to_db(extracted)
 
-            # 4d — Credibility scoring
             st.write("📊 Scoring credibility...")
             scored = [score_paper_credibility(p, display_name) for p in extracted]
+            avg_credibility = round(
+                sum(p.get("credibility_score", 0) for p in scored) / len(scored)
+            ) if scored else 0
 
-            # 4e — Generate report
             st.write("📝 Generating report...")
-
-            from concurrent.futures import ThreadPoolExecutor
-
             llm_deep = _make_llm(deep=True)
-
-            with ThreadPoolExecutor(max_workers=3) as executor:
-                fut_report = executor.submit(generate_report, extracted)
-                fut_gaps = executor.submit(
-                    generate_extrapolated_gaps, extracted, llm_deep
+            with ThreadPoolExecutor(max_workers=3) as ex:
+                fut_report = ex.submit(generate_report, extracted)
+                fut_gaps   = ex.submit(generate_extrapolated_gaps, extracted, llm_deep)
+                fut_matrix = (
+                    ex.submit(render_methodology_matrix, extracted, llm_fast)
+                    if len(extracted) >= MIN_PAPERS_FOR_COMPARISON else None
                 )
-                fut_matrix = None
-                if len(extracted) >= MIN_PAPERS_FOR_COMPARISON:
-                    fut_matrix = executor.submit(
-                        render_methodology_matrix, extracted, llm_fast
-                    )
-
-                report = fut_report.result()
-                gaps_data = fut_gaps.result()
+                report        = fut_report.result()
+                gaps_data     = fut_gaps.result()
                 matrix_section = fut_matrix.result() if fut_matrix else None
 
-            # Assemble report
             if matrix_section:
                 marker = "## 4."
-                if marker in report:
-                    report = report.replace(
-                        marker, matrix_section + "\n\n" + marker
-                    )
-                else:
-                    report += "\n\n" + matrix_section
+                report = (
+                    report.replace(marker, matrix_section + "\n\n" + marker)
+                    if marker in report
+                    else report + "\n\n" + matrix_section
+                )
 
             gaps_md = render_extrapolated_gaps_markdown(gaps_data)
-            report = inject_section_four(report, gaps_md)
-
+            report  = inject_section_four(report, gaps_md)
             save_report(report, extracted)
             st.write("✅ Report generated!")
-
             status.update(label="Analysis complete!", state="complete")
 
-        # ── Store in session state ────────────────────────────────────────
-        st.session_state["report"] = report
-        st.session_state["papers"] = extracted
-        st.session_state["last_query"] = {
-            "topic": topic,
-            "intent": intent,
-            "display_name": display_name,
-            "arxiv_query": arxiv_query,
+        # Store results
+        st.session_state["report"]        = report
+        st.session_state["papers"]        = extracted
+        st.session_state["avg_cred"]      = avg_credibility
+        st.session_state["days_used"]     = fetch_result["days_used"]
+        st.session_state["last_query"]    = {
+            "topic": topic, "intent": intent,
+            "display_name": display_name, "arxiv_query": arxiv_query,
         }
 
     except Exception as e:
         st.error(f"❌ Pipeline error: {e}")
         st.info("Try a different topic or extend the time window.")
 
-
-# ── Step 5: Report display (persists via session_state) ───────────────────────
+# ── Report display ────────────────────────────────────────────────────────────
 
 if "report" in st.session_state and st.session_state["report"]:
-    st.divider()
-    st.subheader(
-        f"📄 Report: {st.session_state.get('last_query', {}).get('display_name', 'Research Report')}"
-    )
-    st.markdown(st.session_state["report"])
 
-    col1, col2 = st.columns(2)
-    with col1:
+    q = st.session_state.get("last_query", {})
+    papers  = st.session_state.get("papers", [])
+    domains = len(set(p.get("sub_domain", "") for p in papers if p.get("sub_domain")))
+
+    # Stats row (4-column symmetric)
+    st.markdown(f"""
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-num">{len(papers)}</div>
+        <div class="stat-label">Papers analyzed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">{st.session_state.get('days_used', '—')}</div>
+        <div class="stat-label">Days searched</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">{st.session_state.get('avg_cred', '—')}</div>
+        <div class="stat-label">Avg credibility</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">{domains}</div>
+        <div class="stat-label">Sub-domains</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Report in acrylic card
+    st.markdown('<div class="report-wrapper">', unsafe_allow_html=True)
+    st.markdown(f"### 📄 {q.get('display_name', 'Research Report')}")
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.markdown(st.session_state["report"])
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Download buttons (symmetric)
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    dl1, dl2 = st.columns(2)
+    with dl1:
         st.download_button(
-            "⬇️ Download Markdown",
+            "⬇️  Download Markdown",
             data=st.session_state["report"],
-            file_name="report.md",
+            file_name=f"{q.get('display_name', 'report').replace(' ','_')}.md",
             mime="text/markdown",
             use_container_width=True,
         )
-    with col2:
+    with dl2:
         st.download_button(
-            "⬇️ Download as Text",
+            "⬇️  Download as Text",
             data=st.session_state["report"],
-            file_name="report.txt",
+            file_name=f"{q.get('display_name', 'report').replace(' ','_')}.txt",
             mime="text/plain",
             use_container_width=True,
         )
 
 elif not analyze_clicked:
-    st.info("👆 Enter a research topic and click **Analyze** to get started.")
+    # Empty state (symmetric 3-col)
+    st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align:center; color:#9ca3af; font-size:14px; font-weight:500;">
+        Enter a topic above and click <strong style="color:#2563EB">Analyze</strong> 
+        to generate your report
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)  # end main-container
