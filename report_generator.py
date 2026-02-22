@@ -31,18 +31,22 @@ load_dotenv()
 def _make_llm(deep: bool = False) -> ChatGoogleGenerativeAI:
     """
     LLM 工厂函数。
-    deep=False → gemini-2.0-flash（快速，用于报告/矩阵/技能提取）
-    deep=True  → gemini-2.5-flash + thinking_budget（慢但推理更深，用于趋势/间隙分析）
+    加入 max_retries=1 防止 429 报错时无限挂起导致 UI 卡死。
     """
     if deep:
-        return ChatGoogleGenerativeAI(
-            model=GEMINI_MODEL,
-            temperature=1,  # thinking models require temperature=1
-            thinking_budget=THINKING_BUDGET,
-        )
+        kwargs = {
+            "model": GEMINI_MODEL,
+            "temperature": 1,
+            "max_retries": 1,
+        }
+        if "thinking" in GEMINI_MODEL or "preview" in GEMINI_MODEL:
+            kwargs["thinking_budget"] = THINKING_BUDGET
+        return ChatGoogleGenerativeAI(**kwargs)
+        
     return ChatGoogleGenerativeAI(
         model=GEMINI_MODEL_FAST,
         temperature=0.2,
+        max_retries=1,
     )
 
 

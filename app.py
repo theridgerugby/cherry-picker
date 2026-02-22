@@ -143,11 +143,12 @@ if analyze_clicked and topic.strip():
             # 4b — Extract structured data
             st.write("🤖 Extracting structured data from papers...")
             extracted = []
+            
             progress = st.progress(0, text="Extracting...")
             
             from concurrent.futures import ThreadPoolExecutor, as_completed
             
-            with ThreadPoolExecutor(max_workers=5) as executor:
+            with ThreadPoolExecutor(max_workers=10) as executor:
                 future_to_paper = {
                     executor.submit(extract_paper_info, p, llm_fast): p
                     for p in papers
@@ -161,7 +162,7 @@ if analyze_clicked and topic.strip():
                         if result is not None:
                             extracted.append(result)
                     except Exception as e:
-                        pass
+                        print(f"Extraction exception: {e}")
                     
                     progress.progress(
                         completed / len(papers),
