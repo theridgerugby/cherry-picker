@@ -95,7 +95,12 @@ st.markdown("""
 .main-container {
     max-width: 780px;
     margin: 0 auto;
-    padding: 48px 24px;
+    padding: 12px 24px 48px;
+}
+
+/* ── Remove Streamlit's default top padding ── */
+.block-container {
+    padding-top: 1rem !important;
 }
 
 /* ── Hero title ── */
@@ -275,8 +280,10 @@ st.markdown("""
     background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 20px;
-    padding: 40px;
+    padding: 24px;
     box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+    max-width: none;
+    overflow-x: auto;
 }
 .report-wrapper p, .report-wrapper li, .report-wrapper td,
 .report-wrapper th, .report-wrapper h1, .report-wrapper h2,
@@ -285,14 +292,8 @@ st.markdown("""
 }
 
 /* ── Status widget text ── */
-[data-testid="stStatusWidget"] {
-    border-radius: 16px !important;
-    border: 1px solid #e5e7eb !important;
-    background: #ffffff !important;
-}
 [data-testid="stStatusWidget"] p,
-[data-testid="stStatusWidget"] span,
-[data-testid="stStatusWidget"] div {
+[data-testid="stStatusWidget"] span {
     color: #374151 !important;
 }
 
@@ -603,13 +604,16 @@ if analyze_clicked and topic.strip():
 
 if "report" in st.session_state and st.session_state["report"]:
 
+    # Close the narrow main-container so report gets full width
+    st.markdown('</div>', unsafe_allow_html=True)
+
     q = st.session_state.get("last_query", {})
     papers  = st.session_state.get("papers", [])
     domains = len(set(p.get("sub_domain", "") for p in papers if p.get("sub_domain")))
 
     # Stats row (4-column symmetric)
     st.markdown(f"""
-    <div class="stats-row">
+    <div class="stats-row" style="max-width:1100px; margin:24px auto;">
       <div class="stat-card">
         <div class="stat-num">{len(papers)}</div>
         <div class="stat-label">Papers analyzed</div>
@@ -629,19 +633,19 @@ if "report" in st.session_state and st.session_state["report"]:
     </div>
     """, unsafe_allow_html=True)
 
-    # Report in acrylic card
-    st.markdown('<div class="report-wrapper">', unsafe_allow_html=True)
+    # Report in full-width card
+    st.markdown('<div class="report-wrapper" style="max-width:1100px; margin:0 auto;">', unsafe_allow_html=True)
     st.markdown(f"### {q.get('display_name', 'Research Report')}")
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
     st.markdown(st.session_state["report"])
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Download buttons (symmetric)
+    # Download buttons
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
     dl1, dl2 = st.columns(2)
     with dl1:
         st.download_button(
-            "⬇️  Download Markdown",
+            "Download Markdown",
             data=st.session_state["report"],
             file_name=f"{q.get('display_name', 'report').replace(' ','_')}.md",
             mime="text/markdown",
@@ -649,7 +653,7 @@ if "report" in st.session_state and st.session_state["report"]:
         )
     with dl2:
         st.download_button(
-            "⬇️  Download as Text",
+            "Download as Text",
             data=st.session_state["report"],
             file_name=f"{q.get('display_name', 'report').replace(' ','_')}.txt",
             mime="text/plain",
@@ -657,13 +661,14 @@ if "report" in st.session_state and st.session_state["report"]:
         )
 
 elif not analyze_clicked:
-    # Empty state (symmetric 3-col)
-    st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)
+    # Empty state
     st.markdown("""
-    <div style="text-align:center; color:#9ca3af; font-size:14px; font-weight:500;">
+    <div style="text-align:center; color:#9ca3af; font-size:14px; font-weight:500; margin-top:24px;">
         Enter a topic above and click <strong style="color:#2563EB">Analyze</strong> 
         to generate your report
     </div>
     """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)  # end main-container
+else:
+    st.markdown('</div>', unsafe_allow_html=True)  # end main-container
 
-st.markdown('</div>', unsafe_allow_html=True)  # end main-container
