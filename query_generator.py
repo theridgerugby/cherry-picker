@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 # Query generation is a simple, high-frequency task — use a lightweight model
 # regardless of what the main pipeline is configured to use.
-_query_llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
+_query_llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
 
 
 QUERY_SYSTEM_PROMPT = """You are an academic librarian expert in arXiv search syntax.

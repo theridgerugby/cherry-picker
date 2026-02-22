@@ -17,7 +17,7 @@ MIN_PAPERS_TO_PROCESS = 5
 # Gemini 模型选择
 # ── 双模型策略 ──────────────────────────────────────────────────────────────
 # Fast model：用于报告主体生成 / 方法论矩阵 / 技能提取（高吞吐、低延迟）
-GEMINI_MODEL_FAST = "gemini-2.0-flash"
+GEMINI_MODEL_FAST = "gemini-2.0-flash-lite"
 # Deep model：用于跨论文推理（趋势分析、间隙推断）— 允许 thinking
 GEMINI_MODEL = "gemini-3-flash-preview"
 # Thinking token 预算（仅对 thinking model 有效）
