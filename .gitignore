@@ -1,0 +1,19 @@
+# 敏感文件 — 绝对不提交
+.env
+.streamlit/secrets.toml
+
+# 本地数据库和缓存
+chroma_db/
+skill_cache.json
+report.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
