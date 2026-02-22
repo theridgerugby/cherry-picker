@@ -79,7 +79,7 @@ if analyze_clicked and topic.strip():
 
     from config import (
         GEMINI_MODEL, GEMINI_MODEL_FAST, THINKING_BUDGET, DOMAIN,
-        MIN_PAPERS_FOR_COMPARISON, MAX_PAPERS,
+        MIN_PAPERS_FOR_COMPARISON,
     )
     from input_validator import validate_user_input, format_rejection_for_ui
     from query_generator import generate_arxiv_query
@@ -95,7 +95,6 @@ if analyze_clicked and topic.strip():
     # ── Step 2: Validation ────────────────────────────────────────────────
 
     llm_fast = _make_llm(deep=False)
-    llm_deep = _make_llm(deep=True)  # required for extraction (complex Pydantic schema)
 
     validation = validate_user_input(topic, llm_fast)
 
@@ -142,30 +141,19 @@ if analyze_clicked and topic.strip():
                 st.stop()
 
             # 4b — Extract structured data
-            # Cap to MAX_PAPERS — gemini-3-flash handles complex schema but is slow for 68 papers
-            papers_to_extract = papers[:MAX_PAPERS]
-            st.write(
-                f"🤖 Extracting structured data "
-                f"({len(papers_to_extract)} of {count} papers)..."
-            )
-            # Must use llm_deep — gemini-2.0-flash fails on the strict
-            # Pydantic schema that paper_extractor.py enforces
+            st.write("🤖 Extracting structured data from papers...")
             extracted = []
-            failed = 0
             progress = st.progress(0, text="Extracting...")
-            for i, paper in enumerate(papers_to_extract):
-                result = extract_paper_info(paper, llm_deep)
+            for i, paper in enumerate(papers):
+                result = extract_paper_info(paper, llm_fast)
                 if result is not None:
                     extracted.append(result)
-                else:
-                    failed += 1
                 progress.progress(
-                    (i + 1) / len(papers_to_extract),
-                    text=f"Extracted {len(extracted)}/{i+1} ({failed} failed)",
+                    (i + 1) / len(papers),
+                    text=f"Extracted {i + 1}/{len(papers)}",
                 )
             progress.empty()
-            fail_note = f" ({failed} failed)" if failed else ""
-            st.write(f"✅ Extracted **{len(extracted)}** / {len(papers_to_extract)} papers{fail_note}")
+            st.write(f"✅ Extracted **{len(extracted)}** / {len(papers)} papers")
 
             if not extracted:
                 status.update(label="Extraction failed", state="error")
@@ -183,6 +171,8 @@ if analyze_clicked and topic.strip():
             st.write("📝 Generating report...")
 
             from concurrent.futures import ThreadPoolExecutor
+
+            llm_deep = _make_llm(deep=True)
 
             with ThreadPoolExecutor(max_workers=3) as executor:
                 fut_report = executor.submit(generate_report, extracted)
