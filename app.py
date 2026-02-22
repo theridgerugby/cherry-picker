@@ -87,8 +87,14 @@ st.markdown("""
     border: 1px solid #e5e7eb;
     border-radius: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
-    padding: 40px;
+    padding: 16px 40px 40px;
     margin: 0 auto;
+}
+
+/* Collapse hidden label space inside acrylic */
+.acrylic .stTextInput label,
+.acrylic .stRadio > label {
+    display: none !important;
 }
 
 /* ── Centered container ── */
