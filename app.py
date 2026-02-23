@@ -385,9 +385,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Acrylic input card ────────────────────────────────────────────────────────
-
-st.markdown('<div class="acrylic">', unsafe_allow_html=True)
+# ── Topic input ─────────────────────────────────────────────────────────────
 
 # Topic input
 topic_value = st.session_state.get("topic_prefill", "")
@@ -429,8 +427,6 @@ with btn_col:
         type="primary",
         use_container_width=True,
     )
-
-st.markdown('</div>', unsafe_allow_html=True)  # end acrylic card
 
 # ── Pipeline execution ────────────────────────────────────────────────────────
 
