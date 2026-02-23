@@ -476,7 +476,9 @@ if analyze_clicked and topic.strip():
     """, unsafe_allow_html=True)
 
     try:
-        with st.status("Running analysis...", expanded=True) as status:
+        status_box = st.empty()
+        status_box.info("Running analysis...")
+        if True:
 
             st.write("Fetching papers from arXiv...")
             fetch_result = fetch_papers_adaptive(arxiv_query, intent)
@@ -488,7 +490,7 @@ if analyze_clicked and topic.strip():
                 st.write(f"Expanded to {fetch_result['days_used']}d to find enough papers.")
 
             if not papers:
-                status.update(label="No papers found", state="error")
+                status_box.error("No papers found")
                 st.stop()
                 
             # --- Enforce a limit of 30 diverse papers ---
@@ -549,7 +551,7 @@ if analyze_clicked and topic.strip():
             st.write(f"Extracted **{len(extracted)}** / {len(papers)} papers")
 
             if not extracted:
-                status.update(label="Extraction failed", state="error")
+                status_box.error("Extraction failed")
                 st.stop()
 
             st.write("Storing to vector database...")
@@ -586,7 +588,7 @@ if analyze_clicked and topic.strip():
             report  = inject_section_four(report, gaps_md)
             save_report(report, extracted)
             st.write("Report generated.")
-            status.update(label="Analysis complete!", state="complete")
+            status_box.success("Analysis complete!")
 
         # Store results
         st.session_state["report"]        = report
@@ -673,4 +675,3 @@ elif not analyze_clicked:
     st.markdown('</div>', unsafe_allow_html=True)  # end main-container
 else:
     st.markdown('</div>', unsafe_allow_html=True)  # end main-container
-
