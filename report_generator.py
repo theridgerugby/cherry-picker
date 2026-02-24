@@ -242,6 +242,154 @@ def _clean_json_response(raw: str) -> str:
     return raw.strip()
 
 
+def _text_blob(value) -> str:
+    """Normalize mixed string/list content into one lowercase text blob."""
+    if isinstance(value, list):
+        return " ".join(str(v) for v in value if v is not None).lower()
+    if value is None:
+        return ""
+    return str(value).lower()
+
+
+def _fallback_extrapolated_gaps(papers: list[dict]) -> dict:
+    """
+    Deterministic fallback when LLM gaps JSON is empty/invalid.
+    Produces at least 3 cross-paper gaps using extracted paper metadata.
+    """
+    if not papers:
+        return {"extrapolated_gaps": []}
+
+    candidates = [
+        {
+            "gap_title": "Benchmark and data fragmentation",
+            "keywords": (
+                "dataset", "data", "label", "annotation", "benchmark",
+                "corpus", "evaluation", "ground truth",
+            ),
+            "description": (
+                "Across papers, evaluation setups and data assumptions are heterogeneous, "
+                "which weakens direct comparability and slows cumulative progress."
+            ),
+            "why_unsolved": (
+                "Most works optimize for their local task setup rather than a shared "
+                "cross-paper benchmark protocol."
+            ),
+            "potential_research_direction": (
+                "Build a standardized benchmark suite with unified metrics and "
+                "shared evaluation scripts across sub-domains."
+            ),
+        },
+        {
+            "gap_title": "Generalization under real-world shift",
+            "keywords": (
+                "generalization", "robust", "domain shift", "out-of-distribution",
+                "noise", "real-world", "field", "transfer",
+            ),
+            "description": (
+                "Methods report improvements in controlled settings, but robustness "
+                "under distribution shift remains unclear at system level."
+            ),
+            "why_unsolved": (
+                "Cross-domain stress testing is sparse, and many papers do not report "
+                "failure modes beyond their primary benchmark."
+            ),
+            "potential_research_direction": (
+                "Introduce shift-aware evaluation (OOD, noisy, temporal drift) as a "
+                "required reporting axis in future studies."
+            ),
+        },
+        {
+            "gap_title": "Scalability and deployment constraints",
+            "keywords": (
+                "compute", "scalability", "scalable", "latency", "memory",
+                "runtime", "cost", "deployment", "efficiency",
+            ),
+            "description": (
+                "The literature emphasizes model quality, but end-to-end constraints "
+                "for production or long-horizon usage are often under-documented."
+            ),
+            "why_unsolved": (
+                "Resource/latency/cost trade-offs are typically secondary and not "
+                "evaluated in a consistent way across papers."
+            ),
+            "potential_research_direction": (
+                "Adopt reporting templates that include compute budget, latency, and "
+                "memory footprint alongside quality metrics."
+            ),
+        },
+        {
+            "gap_title": "Reproducibility and traceability gaps",
+            "keywords": (
+                "reproduc", "code", "open source", "implementation",
+                "ablation", "protocol", "artifact",
+            ),
+            "description": (
+                "Cross-paper synthesis is limited by inconsistent artifact availability "
+                "and varying implementation details."
+            ),
+            "why_unsolved": (
+                "Not all papers release complete code/data pipelines, making faithful "
+                "replication and comparison difficult."
+            ),
+            "potential_research_direction": (
+                "Standardize artifact checklists and require minimal reproducibility "
+                "packages for publication."
+            ),
+        },
+    ]
+
+    paper_rows = []
+    for p in papers:
+        title = str(p.get("title") or "Untitled").strip()
+        text = " ".join(
+            [
+                _text_blob(p.get("limitations")),
+                _text_blob(p.get("problem_statement")),
+                _text_blob(p.get("method_summary")),
+                _text_blob(p.get("contributions")),
+                _text_blob(p.get("sub_domain")),
+            ]
+        )
+        paper_rows.append({"title": title, "text": text})
+
+    scored = []
+    for c in candidates:
+        matched_titles = []
+        score = 0
+        for row in paper_rows:
+            if any(k in row["text"] for k in c["keywords"]):
+                matched_titles.append(row["title"])
+                score += 1
+        scored.append((score, matched_titles[:5], c))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    chosen = [item for item in scored if item[0] > 0][:3]
+    if len(chosen) < 3:
+        # Backfill deterministically if keyword hits are sparse.
+        for item in scored:
+            if item in chosen:
+                continue
+            chosen.append(item)
+            if len(chosen) >= 3:
+                break
+
+    fallback_gaps = []
+    for _, matched_titles, c in chosen:
+        affected = matched_titles or [row["title"] for row in paper_rows[:3]]
+        fallback_gaps.append(
+            {
+                "gap_title": c["gap_title"],
+                "description": c["description"],
+                "affected_papers": affected,
+                "why_unsolved": c["why_unsolved"],
+                "potential_research_direction": c["potential_research_direction"],
+            }
+        )
+
+    return {"extrapolated_gaps": fallback_gaps}
+
+
 def generate_extrapolated_gaps(
     papers: list[dict],
     llm: ChatGoogleGenerativeAI,
@@ -302,10 +450,13 @@ def generate_extrapolated_gaps(
                 ).strip(),
             })
 
-        return {"extrapolated_gaps": normalized[:6]}
+        normalized = normalized[:6]
+        if normalized:
+            return {"extrapolated_gaps": normalized}
+        return _fallback_extrapolated_gaps(papers)
     except Exception as e:
         print(f"[Report] extrapolated gaps generation failed: {e}")
-        return {"extrapolated_gaps": []}
+        return _fallback_extrapolated_gaps(papers)
 
 
 def render_extrapolated_gaps_markdown(gap_data: dict) -> str:
