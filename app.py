@@ -3,6 +3,7 @@
 import html
 import os
 import random
+import re
 from urllib.parse import quote as url_quote
 import streamlit as st
 from dotenv import load_dotenv
@@ -36,7 +37,6 @@ MOVIE_QUOTES = [
     ("Life is like a box of chocolates.", "Forrest Gump"),
     ("Get busy living, or get busy dying.", "The Shawshank Redemption"),
     ("With great power comes great responsibility.", "Spider-Man"),
-    ("I feel the need \u2014 the need for speed.", "Top Gun"),
     ("There is no spoon.", "The Matrix"),
     ("Elementary, my dear Watson.", "The Adventures of Sherlock Holmes"),
     ("To boldly go where no man has gone before.", "Star Trek"),
@@ -49,7 +49,6 @@ MOVIE_QUOTES = [
     ("Hakuna Matata \u2014 it means no worries.", "The Lion King"),
     ("Do, or do not. There is no try.", "Yoda \u2014 The Empire Strikes Back"),
     ("Cooked, or being cooked, that's a good question.", "JZ"),
-    ("Success is not final, failure is not fatal: It is the courage to continue that counts.", "Winston Churchill"),
     ("We cannot walk alone. And as we walk, we must make the pledge that we shall always march ahead. We cannot turn back.", "Dr. Martin Luther King Jr."),
 ]
 
@@ -153,27 +152,6 @@ a {
 
 .nav-link:hover {
     color: var(--color-primary) !important;
-}
-
-.nav-cta {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--color-primary);
-    border-radius: 999px;
-    padding: 8px 16px;
-    background: var(--color-primary);
-    color: #ffffff !important;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 600;
-    transition: all 0.15s ease;
-}
-
-.nav-cta:hover {
-    background: var(--color-primary);
-    color: #ffffff !important;
-    filter: brightness(0.95);
 }
 
 .main-container {
@@ -525,6 +503,29 @@ a {
     color: var(--color-text) !important;
 }
 
+.report-wrapper table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 16px 0 !important;
+}
+
+[data-testid="stMarkdownContainer"] .report-wrapper table th,
+[data-testid="stMarkdownContainer"] .report-wrapper table td,
+.report-wrapper table th,
+.report-wrapper table td {
+    color: var(--color-text-secondary) !important;
+    border: 1px solid var(--color-border) !important;
+    padding: 8px !important;
+    background: transparent !important;
+    vertical-align: top;
+}
+
+[data-testid="stMarkdownContainer"] .report-wrapper table th,
+.report-wrapper table th {
+    color: var(--color-text) !important;
+    font-weight: 600 !important;
+}
+
 [data-testid="stMarkdownContainer"] table {
     width: 100% !important;
     table-layout: auto !important;
@@ -633,8 +634,7 @@ st.markdown("""
   <div class="nav-brand">&#x1F352; Cherry Picker</div>
   <div class="nav-actions">
     <a class="nav-link" href="#" target="_blank" rel="noopener noreferrer">About</a>
-    <a class="nav-link" href="#" target="_blank" rel="noopener noreferrer">GitHub</a>
-    <a class="nav-cta" href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer">Get API Key &#8594;</a>
+    <a class="nav-link" href="https://github.com/theridgerugby/cherry-picker" target="_blank" rel="noopener noreferrer">GitHub</a>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -658,9 +658,90 @@ _EXAMPLE_TOPICS = [
 _FOOTER_HTML = """
 <div class="footer">
   <span>&copy; 2026 Cherry Picker &middot; Built with LangChain & Gemini</span>
-  <span>Made for OpenAI</span>
+  <span>Made for DBW Lab</span>
 </div>
 """
+
+
+def _sanitize_table_cell(value: object) -> str:
+    text = str(value if value is not None else "-")
+    text = text.replace("\n", " ").replace("\r", " ").replace("|", "\\|").strip()
+    return text or "-"
+
+
+def _build_summary_table_markdown(papers: list[dict]) -> str:
+    lines = [
+        "## 6. Summary Table",
+        "",
+        "| Title (short) | Sub-domain | Method Type | Industrial Readiness | Theoretical Depth | Domain Specificity | Key Contribution |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+
+    if not papers:
+        lines.append(
+            "| No papers available | - | - | - | - | - | Report generated without extracted paper rows. |"
+        )
+        return "\n".join(lines)
+
+    for paper in papers:
+        title = paper.get("title") or "Untitled"
+        title_short = title if len(title) <= 60 else f"{title[:57]}..."
+        matrix = paper.get("methodology_matrix") or {}
+
+        sub_domain = paper.get("sub_domain") or "-"
+        method_type = matrix.get("approach_type") or paper.get("method_type") or "-"
+        industrial = paper.get("industrial_readiness_score")
+        if industrial in (None, ""):
+            industrial = "-"
+        theory = paper.get("theoretical_depth")
+        if theory in (None, ""):
+            theory = "-"
+        specificity = paper.get(
+            "domain_specificity",
+            paper.get("relevance_to_sparse_representation"),
+        )
+        if specificity in (None, ""):
+            specificity = "-"
+
+        contributions = paper.get("contributions")
+        if isinstance(contributions, list) and contributions:
+            key_contribution = contributions[0]
+        else:
+            key_contribution = paper.get("key_contribution") or "-"
+
+        lines.append(
+            f"| {_sanitize_table_cell(title_short)} | {_sanitize_table_cell(sub_domain)} "
+            f"| {_sanitize_table_cell(method_type)} | {_sanitize_table_cell(industrial)} "
+            f"| {_sanitize_table_cell(theory)} | {_sanitize_table_cell(specificity)} "
+            f"| {_sanitize_table_cell(key_contribution)} |"
+        )
+
+    return "\n".join(lines)
+
+
+def _summary_section_has_data_rows(summary_section_text: str) -> bool:
+    table_lines = [line.strip() for line in summary_section_text.splitlines() if line.strip().startswith("|")]
+    if len(table_lines) <= 2:
+        return False
+
+    for row in table_lines[2:]:
+        cell_payload = row.strip().strip("|").replace("|", "").replace("-", "").strip()
+        if cell_payload:
+            return True
+    return False
+
+
+def _ensure_summary_table_section(report_text: str, papers: list[dict]) -> str:
+    section_pattern = re.compile(r"## 6\. Summary Table.*?(?=\n## |\Z)", re.DOTALL)
+    match = section_pattern.search(report_text)
+    fallback_section = _build_summary_table_markdown(papers)
+
+    if match:
+        if _summary_section_has_data_rows(match.group(0)):
+            return report_text
+        return section_pattern.sub(fallback_section, report_text, count=1)
+
+    return report_text.rstrip() + "\n\n" + fallback_section + "\n"
 
 # â”€â”€ Layout: centered symmetric container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -929,6 +1010,7 @@ if "report" in st.session_state and st.session_state["report"]:
         report_text = report_text.decode("utf-8", errors="replace")
     elif not isinstance(report_text, str):
         report_text = str(report_text)
+    report_text = _ensure_summary_table_section(report_text, papers)
     encoded_report = url_quote(report_text, safe="")
 
     st.markdown(f"""
@@ -965,7 +1047,7 @@ if "report" in st.session_state and st.session_state["report"]:
 
     st.markdown('<div class="main-container report-main-container">', unsafe_allow_html=True)
     st.markdown('<div class="report-wrapper">', unsafe_allow_html=True)
-    st.markdown(st.session_state["report"])
+    st.markdown(report_text)
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown(_FOOTER_HTML, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
