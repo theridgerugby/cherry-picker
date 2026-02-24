@@ -1,6 +1,7 @@
 # app.py â€” arXiv Research Intelligence | Apple-inspired UI
 
 import html
+import inspect
 import os
 import random
 import re
@@ -564,6 +565,35 @@ a {
     margin: 16px 0;
 }
 
+.extract-progress {
+    position: relative;
+    height: 28px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--color-border);
+    margin-bottom: 8px;
+}
+
+.extract-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--color-primary);
+    transition: width 0.15s ease;
+}
+
+.extract-progress-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    line-height: 1.6;
+    font-weight: 600;
+    color: #F9FAFB !important;
+    pointer-events: none;
+}
+
 [data-testid="stProgressBar"] {
     position: relative !important;
     min-height: 28px !important;
@@ -953,7 +983,23 @@ if analyze_clicked and topic.strip():
         # Extraction (parallel)
         st.write("Extracting structured data...")
         extracted = []
-        progress  = st.progress(0, text="Extracting...")
+        progress_placeholder = st.empty()
+
+        def render_extract_progress(done_count: int, total_count: int) -> None:
+            total = max(total_count, 1)
+            percent = int((done_count / total) * 100)
+            label = html.escape(f"Extracted {done_count}/{total_count}")
+            progress_placeholder.markdown(
+                f"""
+                <div class="extract-progress">
+                  <div class="extract-progress-fill" style="width:{percent}%;"></div>
+                  <div class="extract-progress-text">{label}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        render_extract_progress(0, len(papers))
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor(max_workers=10) as ex:
@@ -967,9 +1013,9 @@ if analyze_clicked and topic.strip():
                         extracted.append(r)
                 except Exception as e:
                     print(f"Extraction error: {e}")
-                progress.progress(done / len(papers), text=f"Extracted {done}/{len(papers)}")
+                render_extract_progress(done, len(papers))
 
-        progress.empty()
+        progress_placeholder.empty()
         st.write(f"Extracted **{len(extracted)}** / {len(papers)} papers")
 
         if not extracted:
@@ -988,12 +1034,17 @@ if analyze_clicked and topic.strip():
         st.write("Generating report...")
         llm_deep = _make_llm(deep=True)
         with ThreadPoolExecutor(max_workers=3) as ex:
-            fut_report = ex.submit(
-                generate_report,
-                extracted,
-                display_name,
-                fetch_result.get("days_used"),
-            )
+            report_days = fetch_result.get("days_used")
+            try:
+                report_sig_params = inspect.signature(generate_report).parameters
+            except (TypeError, ValueError):
+                report_sig_params = {}
+            if "days" in report_sig_params:
+                fut_report = ex.submit(generate_report, extracted, display_name, report_days)
+            elif "domain" in report_sig_params:
+                fut_report = ex.submit(generate_report, extracted, display_name)
+            else:
+                fut_report = ex.submit(generate_report, extracted)
             fut_gaps   = ex.submit(generate_extrapolated_gaps, extracted, llm_deep)
             fut_matrix = (
                 ex.submit(render_methodology_matrix, extracted, llm_fast)
