@@ -307,6 +307,13 @@ a {
     box-shadow: none !important;
 }
 
+.stButton > button[kind="primary"] *,
+.stButton > button[kind="primary"] p,
+.stButton > button[kind="primary"] span,
+.stButton > button[kind="primary"] div {
+    color: #F9FAFB !important;
+}
+
 .stButton > button[kind="primary"]:hover {
     background: var(--color-primary) !important;
     filter: brightness(0.95);
@@ -547,6 +554,13 @@ a {
     border-radius: 4px !important;
 }
 
+.stProgress p,
+.stProgress span,
+[data-testid="stProgressBar"] p,
+[data-testid="stProgressBar"] span {
+    color: #F9FAFB !important;
+}
+
 .empty-state {
     text-align: center;
     color: var(--color-text-secondary) !important;
@@ -668,11 +682,11 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Example topic chips (3-column grid)
+# Example topic chips (single row)
 st.markdown('<div class="section-label explore-label">EXPLORE AN EXAMPLE</div>', unsafe_allow_html=True)
-chip_cols = st.columns(3)
+chip_cols = st.columns(len(_EXAMPLE_TOPICS))
 for i, example in enumerate(_EXAMPLE_TOPICS):
-    with chip_cols[i % 3]:
+    with chip_cols[i]:
         if st.button(example, key=f"chip_{i}"):
             st.session_state["topic_prefill"] = example
             st.rerun()
@@ -680,7 +694,6 @@ for i, example in enumerate(_EXAMPLE_TOPICS):
 st.markdown('<div class="spacer-24"></div>', unsafe_allow_html=True)
 
 # Topic input
-st.markdown('<div class="acrylic">', unsafe_allow_html=True)
 st.markdown('<div class="section-label">Research Topic</div>', unsafe_allow_html=True)
 topic_value = st.session_state.get("topic_prefill", "")
 topic = st.text_input(
@@ -712,7 +725,6 @@ analyze_clicked = st.button(
     use_container_width=True,
 )
 
-st.markdown('</div>', unsafe_allow_html=True)
 if analyze_clicked and topic.strip():
 
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -901,7 +913,12 @@ if "report" in st.session_state and st.session_state["report"]:
     file_stem = q.get("display_name", "report").replace(" ", "_")
     safe_title = html.escape(report_title)
     safe_file_stem = html.escape(file_stem)
-    encoded_report = quote(st.session_state["report"], safe="")
+    report_text = st.session_state.get("report", "")
+    if isinstance(report_text, bytes):
+        report_text = report_text.decode("utf-8", errors="replace")
+    elif not isinstance(report_text, str):
+        report_text = str(report_text)
+    encoded_report = quote(report_text, safe="")
 
     st.markdown(f"""
     <div class="report-subheader">
