@@ -164,7 +164,7 @@ def retrieve_all_papers_from_db() -> list[dict]:
         return []
 
 
-def generate_report(papers: list[dict]) -> str:
+def generate_report(papers: list[dict], domain: str | None = None) -> str:
     """
     调用 Gemini 生成对比报告。
     """
@@ -198,13 +198,17 @@ def generate_report(papers: list[dict]) -> str:
     paper_summaries_str = json.dumps(slim_papers, ensure_ascii=False, indent=2)
     today = datetime.now().strftime("%Y-%m-%d")
 
+    topic_domain = (domain or DOMAIN).strip() if isinstance(domain, str) else DOMAIN
+    if not topic_domain:
+        topic_domain = DOMAIN
+
     system_prompt = REPORT_SYSTEM_PROMPT.format(
-        domain=DOMAIN,
+        domain=topic_domain,
         days=DAYS_BACK,
         date=today,
     )
     user_prompt = REPORT_USER_TEMPLATE.format(
-        domain=DOMAIN,
+        domain=topic_domain,
         days=DAYS_BACK,
         paper_summaries=paper_summaries_str,
     )

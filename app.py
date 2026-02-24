@@ -820,7 +820,7 @@ analyze_clicked = st.button(
 if analyze_clicked and topic.strip():
 
     from langchain_google_genai import ChatGoogleGenerativeAI
-    from config import GEMINI_MODEL, GEMINI_MODEL_FAST, MIN_PAPERS_FOR_COMPARISON
+    from config import GEMINI_MODEL, GEMINI_MODEL_FAST, GEMINI_MODEL_LITE, MIN_PAPERS_FOR_COMPARISON
     from input_validator import validate_user_input, format_rejection_for_ui
     from query_generator import generate_arxiv_query
     from paper_fetcher import fetch_papers_adaptive
@@ -835,8 +835,9 @@ if analyze_clicked and topic.strip():
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
     # Validation
+    llm_lite = ChatGoogleGenerativeAI(model=GEMINI_MODEL_LITE, temperature=0.0, max_retries=1)
     llm_fast = _make_llm(deep=False)
-    validation = validate_user_input(topic, llm_fast)
+    validation = validate_user_input(topic, llm_lite)
 
     if not validation["is_valid"]:
         st.error(format_rejection_for_ui(validation))
@@ -953,7 +954,7 @@ if analyze_clicked and topic.strip():
             st.write("Generating report...")
             llm_deep = _make_llm(deep=True)
             with ThreadPoolExecutor(max_workers=3) as ex:
-                fut_report = ex.submit(generate_report, extracted)
+                fut_report = ex.submit(generate_report, extracted, display_name)
                 fut_gaps   = ex.submit(generate_extrapolated_gaps, extracted, llm_deep)
                 fut_matrix = (
                     ex.submit(render_methodology_matrix, extracted, llm_fast)

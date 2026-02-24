@@ -19,7 +19,9 @@ MIN_PAPERS_TO_PROCESS = 5
 # Fast model：用于报告主体生成 / 方法论矩阵 / 技能提取（高吞吐、低延迟）
 GEMINI_MODEL_FAST = "gemini-2.5-flash"
 # Deep model：用于跨论文推理（趋势分析、间隙推断）— 允许 thinking
-GEMINI_MODEL = "gemini-2.5-pro"
+GEMINI_MODEL = "gemini-2.5-flash"
+# Lite model: 用于轻量级任务，例如输入解析
+GEMINI_MODEL_LITE = "gemini-flash-lite-latest"
 # Thinking token 预算（仅对 thinking model 有效）
 # 越低 = 越快；建议平衡点 1024–4096；设为 0 = 禁用 thinking
 THINKING_BUDGET = 2048
