@@ -1,7 +1,6 @@
 # paper_extractor.py — Prompt 1：结构化提取论文信息，输出 JSON 存入向量数据库
 
 import json
-import os
 import re
 import urllib.parse
 import requests

@@ -557,20 +557,40 @@ a {
     border-radius: 4px !important;
 }
 
+.loading-hint {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text-secondary) !important;
+    margin: 16px 0;
+}
+
+[data-testid="stProgressBar"] {
+    position: relative !important;
+    min-height: 28px !important;
+}
+
+[data-testid="stProgressBar"] > div:first-child {
+    min-height: 28px !important;
+}
+
+[data-testid="stProgressBar"] > div:nth-child(2),
+[data-testid="stProgressBar"] > p {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    pointer-events: none !important;
+    text-align: center !important;
+    margin: 0 !important;
+}
+
 .stProgress p,
 .stProgress span,
 [data-testid="stProgressBar"] p,
 [data-testid="stProgressBar"] span {
     color: #F9FAFB !important;
     margin: 0 !important;
-}
-
-[data-testid="stProgressBar"] > div:first-child {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 28px;
-    text-align: center !important;
 }
 
 .empty-state {
@@ -743,6 +763,21 @@ def _ensure_summary_table_section(report_text: str, papers: list[dict]) -> str:
 
     return report_text.rstrip() + "\n\n" + fallback_section + "\n"
 
+
+def _sync_report_heading_days(report_text: str, days_used: int | None) -> str:
+    if not isinstance(days_used, int) or days_used <= 0:
+        return report_text
+
+    heading_pattern = re.compile(
+        r"^#\s*Research Landscape:\s*(.+?)\s*[—-]\s*Last\s+\d+\s+Days\s*$",
+        re.MULTILINE,
+    )
+
+    def _replace_heading(match: re.Match[str]) -> str:
+        return f"# Research Landscape: {match.group(1)} — Last {days_used} Days"
+
+    return heading_pattern.sub(_replace_heading, report_text, count=1)
+
 # â”€â”€ Layout: centered symmetric container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 st.markdown('<div class="main-container">', unsafe_allow_html=True)
@@ -819,7 +854,6 @@ analyze_clicked = st.button(
 
 if analyze_clicked and topic.strip():
 
-    from langchain_google_genai import ChatGoogleGenerativeAI
     from config import MIN_PAPERS_FOR_COMPARISON
     from input_validator import validate_user_input, format_rejection_for_ui
     from query_generator import generate_arxiv_query
@@ -833,12 +867,15 @@ if analyze_clicked and topic.strip():
     )
 
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    loading_hint = st.empty()
+    loading_hint.markdown('<div class="loading-hint">Loading...</div>', unsafe_allow_html=True)
 
     # Validation
     llm_fast = _make_llm(deep=False)
     validation = validate_user_input(topic, llm_fast)
 
     if not validation["is_valid"]:
+        loading_hint.empty()
         st.error(format_rejection_for_ui(validation))
         if validation.get("suggestion"):
             st.info(f"\U0001F4A1 **Try:** {validation['suggestion']}")
@@ -865,117 +902,120 @@ if analyze_clicked and topic.strip():
     try:
         status_box = st.empty()
         status_box.info("Running analysis...")
-        if True:
+        loading_hint.empty()
+        st.write("Fetching papers from arXiv...")
+        fetch_result = fetch_papers_adaptive(arxiv_query, intent)
+        papers = fetch_result["papers"]
+        count  = fetch_result["paper_count"]
+        st.write(f"Found **{count}** papers (window: {fetch_result['days_used']}d)")
 
-            st.write("Fetching papers from arXiv...")
-            fetch_result = fetch_papers_adaptive(arxiv_query, intent)
-            papers = fetch_result["papers"]
-            count  = fetch_result["paper_count"]
-            st.write(f"Found **{count}** papers (window: {fetch_result['days_used']}d)")
+        if fetch_result["window_expanded"]:
+            st.write(f"Expanded to {fetch_result['days_used']}d to find enough papers.")
 
-            if fetch_result["window_expanded"]:
-                st.write(f"Expanded to {fetch_result['days_used']}d to find enough papers.")
+        if not papers:
+            status_box.error("No papers found")
+            st.stop()
+            
+        # --- Enforce a limit of 30 diverse papers ---
+        max_limit = 30
+        if len(papers) > max_limit:
+            st.write(f"Filtering to {max_limit} most diverse papers (from {len(papers)})...")
+            
+            stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "about", "as", "of", "is", "are", "was", "were", "be", "been", "that", "which", "this", "these", "those", "from", "can", "has", "have", "had", "not"}
+            def get_tokens(p):
+                text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
+                return set(re.findall(r'\b[a-z]{3,}\b', text)) - stop_words
+            
+            ptokens = [get_tokens(p) for p in papers]
+            selected_idxs = [0]
+            while len(selected_idxs) < max_limit:
+                best_i = -1
+                max_min_dist = -1.0
+                for i in range(len(papers)):
+                    if i in selected_idxs:
+                        continue
+                    min_dist_to_sel = 1.0
+                    for j in selected_idxs:
+                        inter = len(ptokens[i] & ptokens[j])
+                        union = len(ptokens[i] | ptokens[j])
+                        dist = 1.0 - (inter / union if union > 0 else 0)
+                        if dist < min_dist_to_sel:
+                            min_dist_to_sel = dist
+                    if min_dist_to_sel > max_min_dist:
+                        max_min_dist = min_dist_to_sel
+                        best_i = i
+                if best_i == -1: break
+                selected_idxs.append(best_i)
+            
+            papers = [papers[i] for i in selected_idxs]
+        # --------------------------------------------
 
-            if not papers:
-                status_box.error("No papers found")
-                st.stop()
-                
-            # --- Enforce a limit of 30 diverse papers ---
-            max_limit = 30
-            if len(papers) > max_limit:
-                st.write(f"Filtering to {max_limit} most diverse papers (from {len(papers)})...")
-                import re
-                
-                stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "about", "as", "of", "is", "are", "was", "were", "be", "been", "that", "which", "this", "these", "those", "from", "can", "has", "have", "had", "not"}
-                def get_tokens(p):
-                    text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
-                    return set(re.findall(r'\b[a-z]{3,}\b', text)) - stop_words
-                
-                ptokens = [get_tokens(p) for p in papers]
-                selected_idxs = [0]
-                while len(selected_idxs) < max_limit:
-                    best_i = -1
-                    max_min_dist = -1.0
-                    for i in range(len(papers)):
-                        if i in selected_idxs:
-                            continue
-                        min_dist_to_sel = 1.0
-                        for j in selected_idxs:
-                            inter = len(ptokens[i] & ptokens[j])
-                            union = len(ptokens[i] | ptokens[j])
-                            dist = 1.0 - (inter / union if union > 0 else 0)
-                            if dist < min_dist_to_sel:
-                                min_dist_to_sel = dist
-                        if min_dist_to_sel > max_min_dist:
-                            max_min_dist = min_dist_to_sel
-                            best_i = i
-                    if best_i == -1: break
-                    selected_idxs.append(best_i)
-                
-                papers = [papers[i] for i in selected_idxs]
-            # --------------------------------------------
+        # Extraction (parallel)
+        st.write("Extracting structured data...")
+        extracted = []
+        progress  = st.progress(0, text="Extracting...")
 
-            # Extraction (parallel)
-            st.write("Extracting structured data...")
-            extracted = []
-            progress  = st.progress(0, text="Extracting...")
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            futures = {ex.submit(extract_paper_info, p, llm_fast): p for p in papers}
+            done = 0
+            for future in as_completed(futures):
+                done += 1
+                try:
+                    r = future.result()
+                    if r is not None:
+                        extracted.append(r)
+                except Exception as e:
+                    print(f"Extraction error: {e}")
+                progress.progress(done / len(papers), text=f"Extracted {done}/{len(papers)}")
 
-            from concurrent.futures import ThreadPoolExecutor, as_completed
-            with ThreadPoolExecutor(max_workers=10) as ex:
-                futures = {ex.submit(extract_paper_info, p, llm_fast): p for p in papers}
-                done = 0
-                for future in as_completed(futures):
-                    done += 1
-                    try:
-                        r = future.result()
-                        if r is not None:
-                            extracted.append(r)
-                    except Exception as e:
-                        print(f"Extraction error: {e}")
-                    progress.progress(done / len(papers), text=f"Extracted {done}/{len(papers)}")
+        progress.empty()
+        st.write(f"Extracted **{len(extracted)}** / {len(papers)} papers")
 
-            progress.empty()
-            st.write(f"Extracted **{len(extracted)}** / {len(papers)} papers")
+        if not extracted:
+            status_box.error("Extraction failed")
+            st.stop()
 
-            if not extracted:
-                status_box.error("Extraction failed")
-                st.stop()
+        st.write("Storing to vector database...")
+        store_papers_to_db(extracted)
 
-            st.write("Storing to vector database...")
-            store_papers_to_db(extracted)
+        st.write("Scoring credibility...")
+        scored = [score_paper_credibility(p, display_name) for p in extracted]
+        avg_credibility = round(
+            sum(p.get("credibility_score", 0) for p in scored) / len(scored)
+        ) if scored else 0
 
-            st.write("Scoring credibility...")
-            scored = [score_paper_credibility(p, display_name) for p in extracted]
-            avg_credibility = round(
-                sum(p.get("credibility_score", 0) for p in scored) / len(scored)
-            ) if scored else 0
+        st.write("Generating report...")
+        llm_deep = _make_llm(deep=True)
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            fut_report = ex.submit(
+                generate_report,
+                extracted,
+                display_name,
+                fetch_result.get("days_used"),
+            )
+            fut_gaps   = ex.submit(generate_extrapolated_gaps, extracted, llm_deep)
+            fut_matrix = (
+                ex.submit(render_methodology_matrix, extracted, llm_fast)
+                if len(extracted) >= MIN_PAPERS_FOR_COMPARISON else None
+            )
+            report        = fut_report.result()
+            gaps_data     = fut_gaps.result()
+            matrix_section = fut_matrix.result() if fut_matrix else None
 
-            st.write("Generating report...")
-            llm_deep = _make_llm(deep=True)
-            with ThreadPoolExecutor(max_workers=3) as ex:
-                fut_report = ex.submit(generate_report, extracted, display_name)
-                fut_gaps   = ex.submit(generate_extrapolated_gaps, extracted, llm_deep)
-                fut_matrix = (
-                    ex.submit(render_methodology_matrix, extracted, llm_fast)
-                    if len(extracted) >= MIN_PAPERS_FOR_COMPARISON else None
-                )
-                report        = fut_report.result()
-                gaps_data     = fut_gaps.result()
-                matrix_section = fut_matrix.result() if fut_matrix else None
+        if matrix_section:
+            marker = "## 4."
+            report = (
+                report.replace(marker, matrix_section + "\n\n" + marker)
+                if marker in report
+                else report + "\n\n" + matrix_section
+            )
 
-            if matrix_section:
-                marker = "## 4."
-                report = (
-                    report.replace(marker, matrix_section + "\n\n" + marker)
-                    if marker in report
-                    else report + "\n\n" + matrix_section
-                )
-
-            gaps_md = render_extrapolated_gaps_markdown(gaps_data)
-            report  = inject_section_four(report, gaps_md)
-            save_report(report, extracted)
-            st.write("Report generated.")
-            status_box.success("Analysis complete!")
+        gaps_md = render_extrapolated_gaps_markdown(gaps_data)
+        report  = inject_section_four(report, gaps_md)
+        save_report(report, extracted)
+        st.write("Report generated.")
+        status_box.success("Analysis complete!")
 
         # Store results
         st.session_state["report"]        = report
@@ -988,6 +1028,7 @@ if analyze_clicked and topic.strip():
         }
 
     except Exception as e:
+        loading_hint.empty()
         st.error(f"Pipeline error: {e}")
         st.info("Try a different topic or extend the time window.")
 
@@ -1011,6 +1052,10 @@ if "report" in st.session_state and st.session_state["report"]:
     elif not isinstance(report_text, str):
         report_text = str(report_text)
     report_text = _ensure_summary_table_section(report_text, papers)
+    report_text = _sync_report_heading_days(
+        report_text,
+        st.session_state.get("days_used"),
+    )
     encoded_report = url_quote(report_text, safe="")
 
     st.markdown(f"""

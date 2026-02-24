@@ -1,7 +1,6 @@
 # report_generator.py — Prompt 3：基于向量数据库生成 Sparse Representation 对比报告
 
 import json
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -15,8 +14,6 @@ from config import (
     MIN_PAPERS_FOR_TREND_ANALYSIS, MIN_PAPERS_FOR_ROADMAP, MIN_PAPERS_FOR_COMPARISON,
     EMPTY_SECTION_PHRASES, CREDIBILITY_THRESHOLD, LOW_CONFIDENCE_REPORT_MODE,
 )
-from paper_extractor import load_db
-from credibility_scorer import score_paper_credibility
 from paper_extractor import load_db
 from credibility_scorer import score_paper_credibility
 from trend_analyzer import analyze_trends, render_trends_markdown
@@ -164,7 +161,11 @@ def retrieve_all_papers_from_db() -> list[dict]:
         return []
 
 
-def generate_report(papers: list[dict], domain: str | None = None) -> str:
+def generate_report(
+    papers: list[dict],
+    domain: str | None = None,
+    days: int | None = None,
+) -> str:
     """
     调用 Gemini 生成对比报告。
     """
@@ -202,14 +203,23 @@ def generate_report(papers: list[dict], domain: str | None = None) -> str:
     if not topic_domain:
         topic_domain = DOMAIN
 
+    report_days = DAYS_BACK
+    try:
+        if days is not None:
+            report_days = int(days)
+    except (TypeError, ValueError):
+        report_days = DAYS_BACK
+    if report_days <= 0:
+        report_days = DAYS_BACK
+
     system_prompt = REPORT_SYSTEM_PROMPT.format(
         domain=topic_domain,
-        days=DAYS_BACK,
+        days=report_days,
         date=today,
     )
     user_prompt = REPORT_USER_TEMPLATE.format(
         domain=topic_domain,
-        days=DAYS_BACK,
+        days=report_days,
         paper_summaries=paper_summaries_str,
     )
 
@@ -383,14 +393,6 @@ def clean_markdown_tables(text: str) -> str:
         else:
             cleaned_lines.append(line)
     return '\n'.join(cleaned_lines)
-
-
-def save_report(report_text: str):
-    """保存报告到 Markdown 文件"""
-    report_text = clean_markdown_tables(report_text)
-    with open(REPORT_OUTPUT_PATH, "w", encoding="utf-8") as f:
-        f.write(report_text)
-    print(f"\n✅ 报告已保存至：{REPORT_OUTPUT_PATH}")
 
 
 # ── 智能章节隐藏 ──────────────────────────────────────────────────────────────
@@ -693,33 +695,6 @@ def _confidence_level(paper_count: int) -> str:
     if paper_count < MIN_PAPERS_FOR_ROADMAP:
         return "MEDIUM"
     return "HIGH"
-
-
-def _render_insufficient_data_notice(trend_data: dict) -> str:
-    """渲染低置信度警告横幅（替代 Section 0 趋势分析）"""
-    count = trend_data.get("paper_count", 0)
-    required = trend_data.get("minimum_required", MIN_PAPERS_FOR_TREND_ANALYSIS)
-    available = trend_data.get("available_papers", [])
-
-    lines = [
-        "## 0. Data Confidence Notice",
-        "",
-        f"> ⚠️ **Low confidence mode**: Only {count} high-credibility paper(s) found "
-        f"(minimum {required} required for trend analysis).",
-        ">",
-        "> **What you can do:** Extend `EXTENDED_DAYS_BACK` in `config.py` to search "
-        "a wider date range, or broaden your `ARXIV_QUERY`.",
-        ">",
-        "> **Showing:** Single-paper summaries only. "
-        "Trend analysis and learning roadmap are disabled.",
-        "",
-    ]
-    if available:
-        lines.append("**Papers available in database:**")
-        for t in available:
-            lines.append(f"- {t}")
-        lines.append("")
-    return "\n".join(lines)
 
 
 def render_single_paper_summary_cards(papers: list[dict]) -> str:

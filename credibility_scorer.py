@@ -1,6 +1,5 @@
 # credibility_scorer.py — 论文可信度评分模块
 
-import re
 import datetime
 
 

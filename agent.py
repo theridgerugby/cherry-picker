@@ -1,7 +1,6 @@
 # agent.py — Prompt 2：ReAct Agent，串联所有工具，主入口文件
 
 import json
-import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.tools import tool
