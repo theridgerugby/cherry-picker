@@ -1,7 +1,9 @@
-# app.py — arXiv Research Intelligence | Apple-inspired UI
+# app.py â€” arXiv Research Intelligence | Apple-inspired UI
 
+import html
 import os
 import random
+from urllib.parse import quote
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -10,32 +12,32 @@ load_dotenv()
 if "GOOGLE_API_KEY" in st.secrets:
     os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# ── Page config ───────────────────────────────────────────────────────────────
+# â”€â”€ Page config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 st.set_page_config(
-    page_title="Cherry Picker · Research Intelligence",
-    page_icon="🍒",
+    page_title="Cherry Picker \u00b7 Research Intelligence",
+    page_icon="\U0001F352",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# ── Movie quotes ──────────────────────────────────────────────────────────────
+# â”€â”€ Movie quotes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 MOVIE_QUOTES = [
-    ("The greatest teacher, failure is.", "Yoda — Star Wars: The Last Jedi"),
+    ("The greatest teacher, failure is.", "Yoda \u2014 Star Wars: The Last Jedi"),
     ("It's not who I am underneath, but what I do that defines me.", "Batman Begins"),
     ("You can't handle the truth!", "A Few Good Men"),
     ("Why so serious?", "The Dark Knight"),
-    ("To infinity and beyond.", "Buzz Lightyear — Toy Story"),
-    ("Just keep swimming.", "Dory — Finding Nemo"),
-    ("After all this time? Always.", "Snape — Harry Potter"),
-    ("I am inevitable.", "Thanos — Avengers: Endgame"),
+    ("To infinity and beyond.", "Buzz Lightyear \u2014 Toy Story"),
+    ("Just keep swimming.", "Dory \u2014 Finding Nemo"),
+    ("After all this time? Always.", "Snape \u2014 Harry Potter"),
+    ("I am inevitable.", "Thanos \u2014 Avengers: Endgame"),
     ("The stuff that dreams are made of.", "The Maltese Falcon"),
     ("You is kind, you is smart, you is important.", "The Help"),
     ("Life is like a box of chocolates.", "Forrest Gump"),
     ("Get busy living, or get busy dying.", "The Shawshank Redemption"),
     ("With great power comes great responsibility.", "Spider-Man"),
-    ("I feel the need — the need for speed.", "Top Gun"),
+    ("I feel the need \u2014 the need for speed.", "Top Gun"),
     ("There is no spoon.", "The Matrix"),
     ("Elementary, my dear Watson.", "The Adventures of Sherlock Holmes"),
     ("To boldly go where no man has gone before.", "Star Trek"),
@@ -45,282 +47,480 @@ MOVIE_QUOTES = [
     ("You had me at hello.", "Jerry Maguire"),
     ("Every passing minute is another chance to turn it all around.", "Vanilla Sky"),
     ("A dream is a wish your heart makes.", "Cinderella"),
-    ("Hakuna Matata — it means no worries.", "The Lion King"),
-    ("Do, or do not. There is no try.", "Yoda — The Empire Strikes Back"),
+    ("Hakuna Matata \u2014 it means no worries.", "The Lion King"),
+    ("Do, or do not. There is no try.", "Yoda \u2014 The Empire Strikes Back"),
 ]
 
-# ── Apple-inspired CSS with acrylic effect ────────────────────────────────────
+# â”€â”€ UI styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 st.markdown("""
 <style>
-/* ── System font stack ── */
+:root {
+    --color-primary: #2563EB;
+    --color-text: #111827;
+    --color-text-secondary: #6B7280;
+    --color-border: rgba(0,0,0,0.08);
+    --color-surface: rgba(255,255,255,0.72);
+}
+
 * {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
                  "Segoe UI", Helvetica, Arial, sans-serif !important;
     -webkit-font-smoothing: antialiased;
 }
 
-/* ── Hide Streamlit chrome ── */
 #MainMenu, footer, header, .stDeployButton { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
 
-/* ── Force light mode ── */
 .stApp {
-    background: #f7f8fc !important;
-    color: #1a1a1a !important;
+    background: #ffffff !important;
+    color: var(--color-text-secondary) !important;
     min-height: 100vh;
 }
 
-/* Force all Streamlit text to be dark */
-.stApp, .stApp p, .stApp span, .stApp label, .stApp div,
-.stMarkdown, .stMarkdown p, .stMarkdown span,
-[data-testid="stText"], [data-testid="stMarkdownContainer"],
-[data-testid="stMarkdownContainer"] p {
-    color: #1a1a1a !important;
+.block-container {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
 }
 
-/* ── Acrylic card ── */
-.acrylic {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid #e5e7eb;
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
-    padding: 16px 40px 40px;
-    margin: 0 auto;
+.stApp p,
+.stApp li,
+.stApp td,
+.stApp th,
+.stApp label,
+.stCaption,
+[data-testid="stCaptionContainer"],
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] td,
+[data-testid="stMarkdownContainer"] th {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+    color: var(--color-text-secondary) !important;
 }
 
-/* Collapse hidden label space inside acrylic */
-.acrylic .stTextInput label,
-.acrylic .stRadio > label {
-    display: none !important;
+.stApp h1,
+.stApp h2,
+.stApp h3,
+.stApp h4,
+.stApp h5,
+.stApp h6 {
+    color: var(--color-text) !important;
 }
 
-/* ── Centered container ── */
+a {
+    color: var(--color-primary) !important;
+}
+
+.top-navbar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 999;
+    height: 52px;
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.nav-brand {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.nav-link {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text-secondary) !important;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.nav-link:hover {
+    color: var(--color-primary) !important;
+}
+
+.nav-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-primary);
+    border-radius: 999px;
+    padding: 8px 16px;
+    background: var(--color-primary);
+    color: #ffffff !important;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.nav-cta:hover {
+    background: var(--color-primary);
+    color: #ffffff !important;
+    filter: brightness(0.95);
+}
+
 .main-container {
     max-width: 780px;
     margin: 0 auto;
-    padding: 12px 24px 48px;
+    padding: 72px 24px 64px;
 }
 
-/* ── Remove Streamlit's default top padding ── */
-.block-container {
-    padding-top: 1rem !important;
-}
-
-/* ── Hero title ── */
 .hero-title {
-    font-size: 42px;
+    font-size: 40px;
     font-weight: 700;
     letter-spacing: -1.5px;
-    color: #111827 !important;
+    color: var(--color-text) !important;
     text-align: center;
     margin-bottom: 8px;
     line-height: 1.15;
 }
 
 .hero-sub {
-    font-size: 17px;
-    color: #6b7280 !important;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text-secondary) !important;
     text-align: center;
-    margin-bottom: 40px;
+    margin-bottom: 32px;
     font-weight: 400;
-    font-style: italic;
-    letter-spacing: -0.2px;
-}
-
-/* ── Feature chips ── */
-.feature-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 28px;
+    letter-spacing: 0;
 }
 
 .feature-chip {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-    border: 1.5px solid #cbd5e1;
-    border-radius: 14px;
-    padding: 22px 18px;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 14px;
     text-align: center;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.feature-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
 }
 
 .feature-chip .icon {
-    font-size: 32px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
     line-height: 1;
-    font-weight: 700;
-    color: #1d4ed8 !important;
-    display: block;
-    margin-bottom: 10px;
-}
-.feature-chip .label {
-    font-size: 24px;
-    font-weight: 700;
-    color: #111827 !important;
+    color: var(--color-text-secondary) !important;
     display: block;
     margin-bottom: 8px;
-    letter-spacing: -0.2px;
-}
-.feature-chip .desc {
-    font-size: 13px;
-    color: #4b5563 !important;
-    line-height: 1.45;
-    font-weight: 500;
 }
 
-/* ── Input field ── */
+.feature-chip .label {
+    font-size: 14px;
+    line-height: 1.6;
+    font-weight: 600;
+    color: var(--color-text) !important;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.feature-chip .desc {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text-secondary) !important;
+}
+
+.section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--color-text-secondary) !important;
+}
+
+.explore-label {
+    margin-bottom: 8px;
+}
+
+.acrylic {
+    background: var(--color-surface);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 40px;
+    margin: 0 auto;
+}
+
+.acrylic .stTextInput label,
+.acrylic .stRadio > label {
+    display: none !important;
+}
+
 .stTextInput > div > div > input {
-    border: 1.5px solid #d1d5db !important;
+    border: 1px solid var(--color-border) !important;
     border-radius: 12px !important;
     padding: 14px 16px !important;
-    font-size: 16px !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
     background: #ffffff !important;
-    color: #111827 !important;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    color: var(--color-text) !important;
+    transition: all 0.15s ease !important;
     box-shadow: none !important;
 }
+
 .stTextInput > div > div > input::placeholder {
-    color: #9ca3af !important;
-}
-.stTextInput > div > div > input:focus {
-    border-color: #2563EB !important;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
-    background: #ffffff !important;
+    color: var(--color-text-secondary) !important;
 }
 
-/* ── Primary button ── */
+.stTextInput > div > div > input:hover {
+    border-color: var(--color-primary) !important;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: var(--color-primary) !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
 .stButton > button[kind="primary"] {
-    background: #2563EB !important;
+    background: var(--color-primary) !important;
     color: #ffffff !important;
-    border: none !important;
+    border: 1px solid var(--color-primary) !important;
     border-radius: 12px !important;
     padding: 14px 28px !important;
-    font-size: 16px !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
     font-weight: 600 !important;
-    transition: all 0.2s ease !important;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.3) !important;
-}
-.stButton > button[kind="primary"] *,
-.stButton > button[kind="primary"] p,
-.stButton > button[kind="primary"] span {
-    color: #ffffff !important;
-}
-.stButton > button[kind="primary"]:hover {
-    background: #1d4ed8 !important;
-    box-shadow: 0 4px 16px rgba(37,99,235,0.4) !important;
-    transform: translateY(-1px) !important;
+    transition: all 0.15s ease !important;
+    box-shadow: none !important;
 }
 
-/* ── Secondary buttons ── */
+.stButton > button[kind="primary"]:hover {
+    background: var(--color-primary) !important;
+    filter: brightness(0.95);
+}
+
 .stButton > button[kind="secondary"] {
-    background: #ffffff !important;
-    color: #374151 !important;
-    border: 1px solid #d1d5db !important;
-    border-radius: 20px !important;
-    font-size: 13px !important;
+    background: transparent !important;
+    color: var(--color-text-secondary) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: 999px !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
     font-weight: 500 !important;
-    padding: 6px 16px !important;
+    padding: 8px 14px !important;
     transition: all 0.15s ease !important;
 }
+
 .stButton > button[kind="secondary"]:hover {
-    background: #eff6ff !important;
-    border-color: #2563EB !important;
-    color: #2563EB !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-primary) !important;
+    background: transparent !important;
 }
 
-/* ── Radio buttons ── */
+.stButton > button:focus,
+.stButton > button:active,
+.stDownloadButton > button:focus,
+.stDownloadButton > button:active {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
 .stRadio > div {
     display: flex;
     gap: 8px;
-    justify-content: center;
+    justify-content: flex-start;
 }
+
 .stRadio label {
-    color: #374151 !important;
+    color: var(--color-text-secondary) !important;
 }
+
 .stRadio label span {
-    color: #374151 !important;
+    color: var(--color-text-secondary) !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
 }
 
-/* ── Stats row ── */
-.stats-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 12px;
-    margin: 24px 0;
-}
-.stat-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 16px;
-    text-align: center;
-}
-.stat-num {
-    font-size: 26px;
-    font-weight: 700;
-    color: #111827 !important;
-    letter-spacing: -1px;
-}
-.stat-label {
-    font-size: 11px;
-    color: #6b7280 !important;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-top: 2px;
+.stRadio label:hover span {
+    color: var(--color-primary) !important;
 }
 
-/* ── Quote box ── */
-.quote-box {
-    background: #eff6ff;
-    border-left: 3px solid #2563EB;
-    border-radius: 0 12px 12px 0;
-    padding: 20px 24px;
-    margin: 24px 0;
-}
-.quote-text {
-    font-size: 18px;
-    font-style: italic;
-    color: #1f2937 !important;
-    font-weight: 500;
-    margin-bottom: 6px;
-}
-.quote-source {
-    font-size: 13px;
-    color: #6b7280 !important;
-    font-weight: 500;
+.spacer-24 {
+    height: 24px;
 }
 
-/* ── Section divider ── */
 .section-divider {
     height: 1px;
-    background: #e5e7eb;
+    background: var(--color-border);
     margin: 32px 0;
 }
 
-/* ── Report container ── */
-.report-wrapper {
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+}
+
+.stat-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.stat-num {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.6;
+    color: var(--color-text) !important;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--color-text-secondary) !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 8px;
+}
+
+.quote-box {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin: 24px 0;
+    animation: fadeSlideIn 0.4s ease forwards;
+}
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.quote-text {
+    font-size: 14px;
+    line-height: 1.6;
+    font-style: italic;
+    color: var(--color-text) !important;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.quote-source {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text-secondary) !important;
+    font-weight: 500;
+}
+
+.report-subheader {
+    position: sticky;
+    top: 52px;
+    z-index: 998;
+    max-width: 780px;
+    margin: 0 auto 24px;
+    height: 44px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--color-border);
     background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 20px;
+}
+
+.report-subheader-title {
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    font-weight: 600;
+    color: var(--color-text) !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.report-subheader-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.report-download-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 8px 12px;
+    color: var(--color-text-secondary) !important;
+    text-decoration: none;
+    font-size: 14px;
+    line-height: 1.6;
+    transition: all 0.15s ease;
+}
+
+.report-download-link:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary) !important;
+}
+
+.report-main-container {
+    padding-top: 24px;
+}
+
+.report-wrapper {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
     padding: 24px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-    max-width: none;
+    box-shadow: none;
+    max-width: 720px;
+    margin: 0 auto;
     overflow-x: auto;
 }
+
 .report-wrapper p, .report-wrapper li, .report-wrapper td,
 .report-wrapper th, .report-wrapper h1, .report-wrapper h2,
 .report-wrapper h3, .report-wrapper h4 {
-    color: #1a1a1a !important;
+    color: var(--color-text-secondary) !important;
 }
 
-/* Keep report tables readable and avoid clipped cells */
+.report-wrapper h1,
+.report-wrapper h2,
+.report-wrapper h3,
+.report-wrapper h4 {
+    color: var(--color-text) !important;
+}
+
 [data-testid="stMarkdownContainer"] table {
     width: 100% !important;
     table-layout: auto !important;
 }
+
 [data-testid="stMarkdownContainer"] table th,
 [data-testid="stMarkdownContainer"] table td {
     white-space: normal !important;
@@ -332,48 +532,89 @@ st.markdown("""
     min-width: 280px;
 }
 
-/* ── Status widget text ── */
 [data-testid="stStatusWidget"] p,
 [data-testid="stStatusWidget"] span {
-    color: #374151 !important;
+    color: var(--color-text-secondary) !important;
 }
 
-/* ── Alerts ── */
 .stAlert {
     border-radius: 12px !important;
     border: none !important;
 }
 
-/* ── Download buttons ── */
-.stDownloadButton > button {
-    border-radius: 10px !important;
-    font-weight: 500 !important;
-    font-size: 14px !important;
-    border: 1.5px solid #d1d5db !important;
-    background: #ffffff !important;
-    color: #374151 !important;
-    transition: all 0.15s ease !important;
-}
-.stDownloadButton > button:hover {
-    background: #ffffff !important;
-    border-color: #2563EB !important;
-    color: #2563EB !important;
-}
-
-/* ── Progress bar ── */
 .stProgress > div > div {
-    background: #2563EB !important;
+    background: var(--color-primary) !important;
     border-radius: 4px !important;
 }
 
-/* ── Caption text ── */
-.stCaption, [data-testid="stCaptionContainer"] {
-    color: #6b7280 !important;
+.empty-state {
+    text-align: center;
+    color: var(--color-text-secondary) !important;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-top: 24px;
+}
+
+.empty-state strong {
+    color: var(--color-primary) !important;
+}
+
+.footer {
+    height: 64px;
+    margin-top: 48px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--color-text-secondary) !important;
+}
+
+.footer span {
+    font-size: 12px;
+    color: var(--color-text-secondary) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --color-primary: #2563EB;
+        --color-text: #F9FAFB;
+        --color-text-secondary: #9CA3AF;
+        --color-border: rgba(255,255,255,0.1);
+        --color-surface: rgba(30,30,30,0.72);
+    }
+
+    .stApp {
+        background: #0f0f0f !important;
+    }
+
+    .top-navbar {
+        background: rgba(15,15,15,0.85);
+    }
+
+    .report-subheader {
+        background: #0f0f0f;
+    }
+
+    .stTextInput > div > div > input {
+        background: rgba(15,15,15,0.85) !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Intent mapping ────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="top-navbar">
+  <div class="nav-brand">&#x1F352; Cherry Picker</div>
+  <div class="nav-actions">
+    <a class="nav-link" href="#" target="_blank" rel="noopener noreferrer">About</a>
+    <a class="nav-link" href="#" target="_blank" rel="noopener noreferrer">GitHub</a>
+    <a class="nav-cta" href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer">Get API Key &#8594;</a>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# â”€â”€ Intent mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _INTENT_MAP = {
     "Latest (past 2 weeks)": "latest",
@@ -389,7 +630,14 @@ _EXAMPLE_TOPICS = [
     "robotics motion planning",
 ]
 
-# ── Layout: centered symmetric container ─────────────────────────────────────
+_FOOTER_HTML = """
+<div class="footer">
+  <span>&copy; 2026 Cherry Picker &middot; Built with LangChain & Gemini</span>
+  <span>Made for OpenAI</span>
+</div>
+"""
+
+# â”€â”€ Layout: centered symmetric container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
@@ -399,30 +647,41 @@ st.markdown("""
 <div class="hero-sub">hope other lazy researchers would like this too</div>
 """, unsafe_allow_html=True)
 
-# Feature chips (3-column symmetric)
+# Feature chips (3-column)
 st.markdown("""
 <div class="feature-row">
   <div class="feature-chip">
-    <span class="icon">1</span>
+    <span class="icon">step 1</span>
     <span class="label">Real-time arXiv</span>
     <span class="desc">Papers published this week, not from a stale training set</span>
   </div>
   <div class="feature-chip">
-    <span class="icon">2</span>
+    <span class="icon">step 2</span>
     <span class="label">Structured Extraction</span>
     <span class="desc">Every claim traced to a specific paper and date</span>
   </div>
   <div class="feature-chip">
-    <span class="icon">3</span>
+    <span class="icon">step 3</span>
     <span class="label">Cross-paper Insights</span>
     <span class="desc">Trend analysis that ChatGPT cannot replicate</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-# ── Topic input ─────────────────────────────────────────────────────────────
+# Example topic chips (3-column grid)
+st.markdown('<div class="section-label explore-label">EXPLORE AN EXAMPLE</div>', unsafe_allow_html=True)
+chip_cols = st.columns(3)
+for i, example in enumerate(_EXAMPLE_TOPICS):
+    with chip_cols[i % 3]:
+        if st.button(example, key=f"chip_{i}"):
+            st.session_state["topic_prefill"] = example
+            st.rerun()
+
+st.markdown('<div class="spacer-24"></div>', unsafe_allow_html=True)
 
 # Topic input
+st.markdown('<div class="acrylic">', unsafe_allow_html=True)
+st.markdown('<div class="section-label">Research Topic</div>', unsafe_allow_html=True)
 topic_value = st.session_state.get("topic_prefill", "")
 topic = st.text_input(
     "Research topic",
@@ -431,18 +690,10 @@ topic = st.text_input(
     label_visibility="collapsed",
 )
 
-# Example topic chips (symmetric row)
-st.markdown("<div style='margin: 12px 0 4px; font-size:12px; color:#9ca3af; font-weight:500;'>Try an example</div>", unsafe_allow_html=True)
-chip_cols = st.columns(len(_EXAMPLE_TOPICS))
-for i, example in enumerate(_EXAMPLE_TOPICS):
-    with chip_cols[i]:
-        if st.button(example, key=f"chip_{i}"):
-            st.session_state["topic_prefill"] = example
-            st.rerun()
+st.markdown('<div class="spacer-24"></div>', unsafe_allow_html=True)
+st.markdown('<div class="section-label">Time Window</div>', unsafe_allow_html=True)
 
-st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-
-# Time window (centered radio)
+# Time window
 time_window = st.radio(
     "Time window",
     options=list(_INTENT_MAP.keys()),
@@ -452,19 +703,16 @@ time_window = st.radio(
 )
 intent = _INTENT_MAP[time_window]
 
-st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+st.markdown('<div class="spacer-24"></div>', unsafe_allow_html=True)
 
-# Analyze button (full width, centered)
-_, btn_col, _ = st.columns([1, 3, 1])
-with btn_col:
-    analyze_clicked = st.button(
-        "Analyze",
-        type="primary",
-        use_container_width=True,
-    )
+# Analyze button (full width)
+analyze_clicked = st.button(
+    "Analyze",
+    type="primary",
+    use_container_width=True,
+)
 
-# ── Pipeline execution ────────────────────────────────────────────────────────
-
+st.markdown('</div>', unsafe_allow_html=True)
 if analyze_clicked and topic.strip():
 
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -489,7 +737,7 @@ if analyze_clicked and topic.strip():
     if not validation["is_valid"]:
         st.error(format_rejection_for_ui(validation))
         if validation.get("suggestion"):
-            st.info(f"💡 **Try:** {validation['suggestion']}")
+            st.info(f"\U0001F4A1 **Try:** {validation['suggestion']}")
         st.stop()
 
     # Query generation
@@ -506,7 +754,7 @@ if analyze_clicked and topic.strip():
     st.markdown(f"""
     <div class="quote-box">
         <div class="quote-text">"{quote}"</div>
-        <div class="quote-source">— {source}</div>
+        <div class="quote-source">\u2014 {source}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -639,16 +887,31 @@ if analyze_clicked and topic.strip():
         st.error(f"Pipeline error: {e}")
         st.info("Try a different topic or extend the time window.")
 
-# ── Report display ────────────────────────────────────────────────────────────
+# â”€â”€ Report display â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 if "report" in st.session_state and st.session_state["report"]:
 
-    # Close the narrow main-container so report gets full width
     st.markdown('</div>', unsafe_allow_html=True)
 
     q = st.session_state.get("last_query", {})
-    papers  = st.session_state.get("papers", [])
+    papers = st.session_state.get("papers", [])
     domains = len(set(p.get("sub_domain", "") for p in papers if p.get("sub_domain")))
+
+    report_title = q.get("display_name", "Research Report")
+    file_stem = q.get("display_name", "report").replace(" ", "_")
+    safe_title = html.escape(report_title)
+    safe_file_stem = html.escape(file_stem)
+    encoded_report = quote(st.session_state["report"], safe="")
+
+    st.markdown(f"""
+    <div class="report-subheader">
+      <div class="report-subheader-title">{safe_title}</div>
+      <div class="report-subheader-actions">
+        <a class="report-download-link" href="data:text/markdown;charset=utf-8,{encoded_report}" download="{safe_file_stem}.md">&#11015; .md</a>
+        <a class="report-download-link" href="data:text/plain;charset=utf-8,{encoded_report}" download="{safe_file_stem}.txt">&#11015; .txt</a>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Stats row (4-column symmetric)
     st.markdown(f"""
@@ -658,11 +921,11 @@ if "report" in st.session_state and st.session_state["report"]:
         <div class="stat-label">Papers analyzed</div>
       </div>
       <div class="stat-card">
-        <div class="stat-num">{st.session_state.get('days_used', '—')}</div>
+        <div class="stat-num">{st.session_state.get('days_used', '-')}</div>
         <div class="stat-label">Days searched</div>
       </div>
       <div class="stat-card">
-        <div class="stat-num">{st.session_state.get('avg_cred', '—')}</div>
+        <div class="stat-num">{st.session_state.get('avg_cred', '-')}</div>
         <div class="stat-label">Avg credibility</div>
       </div>
       <div class="stat-card">
@@ -672,41 +935,22 @@ if "report" in st.session_state and st.session_state["report"]:
     </div>
     """, unsafe_allow_html=True)
 
-    # Report content with wider side margins for readability
-    _, report_col, _ = st.columns([0.8, 8.4, 0.8])
-    with report_col:
-        st.markdown(f"### {q.get('display_name', 'Research Report')}")
-        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-        st.markdown(st.session_state["report"])
-
-    # Download buttons
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-    dl1, dl2 = st.columns(2)
-    with dl1:
-        st.download_button(
-            "Download Markdown",
-            data=st.session_state["report"],
-            file_name=f"{q.get('display_name', 'report').replace(' ','_')}.md",
-            mime="text/markdown",
-            use_container_width=True,
-        )
-    with dl2:
-        st.download_button(
-            "Download as Text",
-            data=st.session_state["report"],
-            file_name=f"{q.get('display_name', 'report').replace(' ','_')}.txt",
-            mime="text/plain",
-            use_container_width=True,
-        )
+    st.markdown('<div class="main-container report-main-container">', unsafe_allow_html=True)
+    st.markdown('<div class="report-wrapper">', unsafe_allow_html=True)
+    st.markdown(st.session_state["report"])
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown(_FOOTER_HTML, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 elif not analyze_clicked:
-    # Empty state
     st.markdown("""
-    <div style="text-align:center; color:#9ca3af; font-size:14px; font-weight:500; margin-top:24px;">
-        Enter a topic above and click <strong style="color:#2563EB">Analyze</strong> 
-        to generate your report
+    <div class="empty-state">
+        Enter a topic above and click <strong>Analyze</strong> to generate your report
     </div>
     """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)  # end main-container
+    st.markdown(_FOOTER_HTML, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 else:
-    st.markdown('</div>', unsafe_allow_html=True)  # end main-container
+    st.markdown(_FOOTER_HTML, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
