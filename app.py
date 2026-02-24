@@ -834,7 +834,7 @@ st.markdown("""
   <div class="feature-chip">
     <span class="icon">Why us 3</span>
     <span class="label">Cross-paper Insights</span>
-    <span class="desc">Trend analysis that ChatGPT cannot replicate</span>
+    <span class="desc">Objective synthesis providing guidance rather than biased opinions</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1045,7 +1045,7 @@ if analyze_clicked and topic.strip():
                 fut_report = ex.submit(generate_report, extracted, display_name)
             else:
                 fut_report = ex.submit(generate_report, extracted)
-            fut_gaps   = ex.submit(generate_extrapolated_gaps, extracted, llm_deep)
+            fut_gaps   = ex.submit(generate_extrapolated_gaps, extracted, llm_deep, display_name)
             fut_matrix = (
                 ex.submit(render_methodology_matrix, extracted, llm_fast)
                 if len(extracted) >= MIN_PAPERS_FOR_COMPARISON else None

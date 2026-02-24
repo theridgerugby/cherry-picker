@@ -9,7 +9,7 @@ ARXIV_QUERY = "ti:sparse AND ti:representation OR ti:\"dictionary learning\" OR 
 DAYS_BACK = 30
 
 # 最多拉取多少篇
-MAX_PAPERS = 10
+MAX_PAPERS = 20
 
 # 每次 Agent 至少处理多少篇才能结束
 MIN_PAPERS_TO_PROCESS = 5
