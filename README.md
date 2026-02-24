@@ -1,83 +1,58 @@
-# 🍒 Cherry Picker
+# Cherry Picker
 
-**Cherry Picker** is an Apple-inspired Streamlit web application designed for **arXiv Research Intelligence**. It empowers researchers to input a topic and automatically receive a comprehensive, AI-driven markdown report summarizing the latest relevant papers directly from arXiv.
+Cherry Picker is a web tool for research. It finds papers on arXiv and uses AI to summarize them.
 
-Unlike tools that rely on stale training data, Cherry Picker fetches the most recent papers in real-time, extracts their core content, and performs deep analysis to uncover trends, assess credibility, and identify essential skills within the domain.
+## Features
+- It finds the newest papers on arXiv.
+- It makes your search topic better for Finding papers.
+- It reads the papers and gets the main info.
+- It shows what topics are new and popular.
+- It gives papers a score to show if they are good.
+- It lists the skills and tools mentioned in the papers.
+- It writes a simple report for you.
 
-## ✨ Features
+## How to install
+You need Python 3.8 or newer.
 
-- **Real-time arXiv Fetching:** Always up-to-date. Papers are queried directly from arXiv based on your research topic.
-- **Complex Query Generation:** Transforms simple user inputs into highly optimized arXiv search queries.
-- **Intelligent Content Extraction:** Parses and extracts the core textual content from the downloaded papers.
-- **Trend Analysis:** Identifies emerging trends and declining approaches within the fetched corpus of papers.
-- **Credibility Scoring:** Evaluates research papers based on their methodology, content, and author/institution metrics.
-- **Skills Analysis:** Automatically detects tools, techniques, and skills required or introduced in the domain.
-- **Polished Markdown Reports:** Compiles all findings into a structured, easily readable, and beautifully formatted Markdown report.
-- **Premium UI:** Features an Apple-inspired, sleek, and responsive user interface built with Streamlit.
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.8+
-- A Google API Key (for Gemini models used in analysis)
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd cherry-picker
-   ```
-
-2. **Create a virtual environment (optional but recommended):**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows, use: venv\Scripts\activate
-   ```
-
-3. **Install dependencies:**
+1. Download the code to your computer.
+2. Open your terminal in the code folder.
+3. Install the needed parts:
    ```bash
    pip install -r requirements.txt
    ```
-
-4. **Environment Variables:**
-   Create a `.env` file in the root directory (or use Streamlit secrets) and add your Google API key:
+4. Put your Google API Key in a file named `.env`:
    ```env
-   GOOGLE_API_KEY=your_google_api_key_here
+   GOOGLE_API_KEY=your_api_key_here
    ```
 
-### Running the App
-
-Start the Streamlit application by running:
-
+## How to use
+Run this command to start the app:
 ```bash
 streamlit run app.py
 ```
+The app will open in your web browser.
 
-The application will launch in your default web browser.
+## The files in this project
+- `app.py`: This is the main file for the web app.
+- `input_validator.py`: It checks if your search topic is okay.
+- `query_generator.py`: It creates a good search for arXiv.
+- `paper_fetcher.py`: It gets papers from arXiv.
+- `paper_extractor.py`: It reads the text from the papers.
+- `trend_analyzer.py`: It finds new trends in the research.
+- `credibility_scorer.py`: It checks if the papers are high quality.
+- `skills_analyzer.py`: It finds technical skills in the papers.
+- `report_generator.py`: It creates the final report file.
+- `agent.py`: It uses AI to analyze the papers.
+- `config.py`: It has the settings for the app.
 
-## 🏗️ Architecture overview
-
-Cherry Picker is composed of several specialized modules:
-
-- `app.py`: The main Streamlit application and UI orchestrator.
-- `input_validator.py` & `query_generator.py`: Validate user input and generate optimized arXiv queries.
-- `paper_fetcher.py` & `paper_extractor.py`: Interface with arXiv to download and extract data from papers.
-- `trend_analyzer.py`: Analyzes the historical and emerging trends in the research domain.
-- `credibility_scorer.py`: Scores the credibility and impact potential of the papers.
-- `skills_analyzer.py`: Extracts specific tools and technical skills mentioned in the research.
-- `report_generator.py`: Assembles the final markdown report from the analytical modules.
-- `agent.py`: Orchestrates the Language Model (e.g., Gemini) invocations for summaries and deep-dive analyses.
-- `config.py`: Contains configuration constants for the application.
-
-## 🐳 Docker Deployment
-
-You can also run Cherry Picker using Docker:
-
-```bash
-docker build -t cherry-picker .
-docker run -p 8501:8501 -e GOOGLE_API_KEY=your_google_api_key_here cherry-picker
-```
-
-Navigate to `http://localhost:8501` to access the app.
+## Using Docker
+You can also use Docker to run the app:
+1. Build the app:
+   ```bash
+   docker build -t cherry-picker .
+   ```
+2. Run the app:
+   ```bash
+   docker run -p 8501:8501 -e GOOGLE_API_KEY=your_key cherry-picker
+   ```
+3. Go to `http://localhost:8501` on your computer.
