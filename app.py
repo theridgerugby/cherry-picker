@@ -3,7 +3,7 @@
 import html
 import os
 import random
-from urllib.parse import quote
+from urllib.parse import quote as url_quote
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -31,7 +31,6 @@ MOVIE_QUOTES = [
     ("To infinity and beyond.", "Buzz Lightyear \u2014 Toy Story"),
     ("Just keep swimming.", "Dory \u2014 Finding Nemo"),
     ("After all this time? Always.", "Snape \u2014 Harry Potter"),
-    ("I am inevitable.", "Thanos \u2014 Avengers: Endgame"),
     ("The stuff that dreams are made of.", "The Maltese Falcon"),
     ("You is kind, you is smart, you is important.", "The Help"),
     ("Life is like a box of chocolates.", "Forrest Gump"),
@@ -49,6 +48,9 @@ MOVIE_QUOTES = [
     ("A dream is a wish your heart makes.", "Cinderella"),
     ("Hakuna Matata \u2014 it means no worries.", "The Lion King"),
     ("Do, or do not. There is no try.", "Yoda \u2014 The Empire Strikes Back"),
+    ("Cooked, or being cooked, that's a good question.", "JZ"),
+    ("Success is not final, failure is not fatal: It is the courage to continue that counts.", "Winston Churchill"),
+    ("We cannot walk alone. And as we walk, we must make the pledge that we shall always march ahead. We cannot turn back.", "Dr. Martin Luther King Jr."),
 ]
 
 # â”€â”€ UI styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -559,6 +561,15 @@ a {
 [data-testid="stProgressBar"] p,
 [data-testid="stProgressBar"] span {
     color: #F9FAFB !important;
+    margin: 0 !important;
+}
+
+[data-testid="stProgressBar"] > div:first-child {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 28px;
+    text-align: center !important;
 }
 
 .empty-state {
@@ -665,17 +676,17 @@ st.markdown("""
 st.markdown("""
 <div class="feature-row">
   <div class="feature-chip">
-    <span class="icon">step 1</span>
+    <span class="icon">Why us 1</span>
     <span class="label">Real-time arXiv</span>
     <span class="desc">Papers published this week, not from a stale training set</span>
   </div>
   <div class="feature-chip">
-    <span class="icon">step 2</span>
+    <span class="icon">Why us 2</span>
     <span class="label">Structured Extraction</span>
     <span class="desc">Every claim traced to a specific paper and date</span>
   </div>
   <div class="feature-chip">
-    <span class="icon">step 3</span>
+    <span class="icon">Why us 3</span>
     <span class="label">Cross-paper Insights</span>
     <span class="desc">Trend analysis that ChatGPT cannot replicate</span>
   </div>
@@ -762,10 +773,10 @@ if analyze_clicked and topic.strip():
     st.caption(f"`{arxiv_query}`")
 
     # Random movie quote while loading
-    quote, source = random.choice(MOVIE_QUOTES)
+    movie_quote, source = random.choice(MOVIE_QUOTES)
     st.markdown(f"""
     <div class="quote-box">
-        <div class="quote-text">"{quote}"</div>
+        <div class="quote-text">"{movie_quote}"</div>
         <div class="quote-source">\u2014 {source}</div>
     </div>
     """, unsafe_allow_html=True)
@@ -918,7 +929,7 @@ if "report" in st.session_state and st.session_state["report"]:
         report_text = report_text.decode("utf-8", errors="replace")
     elif not isinstance(report_text, str):
         report_text = str(report_text)
-    encoded_report = quote(report_text, safe="")
+    encoded_report = url_quote(report_text, safe="")
 
     st.markdown(f"""
     <div class="report-subheader">
@@ -970,4 +981,3 @@ elif not analyze_clicked:
 else:
     st.markdown(_FOOTER_HTML, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
-
