@@ -1045,7 +1045,14 @@ if analyze_clicked and topic.strip():
                 fut_report = ex.submit(generate_report, extracted, display_name)
             else:
                 fut_report = ex.submit(generate_report, extracted)
-            fut_gaps   = ex.submit(generate_extrapolated_gaps, extracted, llm_deep, display_name)
+            try:
+                gaps_sig_params = inspect.signature(generate_extrapolated_gaps).parameters
+            except (TypeError, ValueError):
+                gaps_sig_params = {}
+            if "domain" in gaps_sig_params:
+                fut_gaps = ex.submit(generate_extrapolated_gaps, extracted, llm_deep, display_name)
+            else:
+                fut_gaps = ex.submit(generate_extrapolated_gaps, extracted, llm_deep)
             fut_matrix = (
                 ex.submit(render_methodology_matrix, extracted, llm_fast)
                 if len(extracted) >= MIN_PAPERS_FOR_COMPARISON else None
