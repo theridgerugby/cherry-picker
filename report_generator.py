@@ -617,10 +617,11 @@ def render_methodology_matrix(papers: list[dict], llm=None) -> str:
     matrix_rows_for_llm = []  # 用于生成对比段落
 
     for p in papers:
-        title_short = (p.get("title") or "Untitled")[:40]
+        title = p.get("title") or "Untitled"
+        title_cell = _sanitize_md_cell(title)
         mm = p.get("methodology_matrix")
         if not mm or not isinstance(mm, dict):
-            lines.append(f"| {title_short} | — | — | — | — | — | — | — |")
+            lines.append(f"| {title_cell} | — | — | — | — | — | — | — |")
             has_missing = True
             continue
 
@@ -640,11 +641,13 @@ def render_methodology_matrix(papers: list[dict], llm=None) -> str:
         baseline = mm.get("key_baseline_compared_to") or "—"
 
         lines.append(
-            f"| {title_short} | {approach} | {arch} | {supervision} "
-            f"| {modality} | {open_source_display} | {theory} | {baseline} |"
+            f"| {title_cell} | {_sanitize_md_cell(approach)} | {_sanitize_md_cell(arch)} "
+            f"| {_sanitize_md_cell(supervision)} | {_sanitize_md_cell(modality)} "
+            f"| {_sanitize_md_cell(open_source_display)} | {_sanitize_md_cell(theory)} "
+            f"| {_sanitize_md_cell(baseline)} |"
         )
         matrix_rows_for_llm.append({
-            "title": title_short,
+            "title": title,
             "approach": approach,
             "architecture": arch,
             "supervision": supervision,

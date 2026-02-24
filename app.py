@@ -316,6 +316,22 @@ st.markdown("""
     color: #1a1a1a !important;
 }
 
+/* Keep report tables readable and avoid clipped cells */
+[data-testid="stMarkdownContainer"] table {
+    width: 100% !important;
+    table-layout: auto !important;
+}
+[data-testid="stMarkdownContainer"] table th,
+[data-testid="stMarkdownContainer"] table td {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+}
+[data-testid="stMarkdownContainer"] table th:first-child,
+[data-testid="stMarkdownContainer"] table td:first-child {
+    min-width: 280px;
+}
+
 /* ── Status widget text ── */
 [data-testid="stStatusWidget"] p,
 [data-testid="stStatusWidget"] span {
@@ -366,11 +382,11 @@ _INTENT_MAP = {
 }
 
 _EXAMPLE_TOPICS = [
-    "sparse representation",
-    "multimodal LLMs",
-    "drug discovery GNNs",
-    "RLHF alignment",
-    "vision transformers",
+    "astrophysics signals",
+    "biochemistry applications",
+    "quantum error correction",
+    "climate model inference",
+    "robotics motion planning",
 ]
 
 # ── Layout: centered symmetric container ─────────────────────────────────────
@@ -380,7 +396,7 @@ st.markdown('<div class="main-container">', unsafe_allow_html=True)
 # Hero
 st.markdown("""
 <div class="hero-title">Cherry Picker</div>
-<div class="hero-sub">hope other researchers will like this too</div>
+<div class="hero-sub">hope other lazy researchers would like this too</div>
 """, unsafe_allow_html=True)
 
 # Feature chips (3-column symmetric)
@@ -656,10 +672,12 @@ if "report" in st.session_state and st.session_state["report"]:
     </div>
     """, unsafe_allow_html=True)
 
-    # Report content
-    st.markdown(f"### {q.get('display_name', 'Research Report')}")
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.markdown(st.session_state["report"])
+    # Report content with wider side margins for readability
+    _, report_col, _ = st.columns([0.8, 8.4, 0.8])
+    with report_col:
+        st.markdown(f"### {q.get('display_name', 'Research Report')}")
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.markdown(st.session_state["report"])
 
     # Download buttons
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
