@@ -135,26 +135,40 @@ st.markdown("""
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 16px;
-    margin-bottom: 36px;
+    margin-bottom: 28px;
 }
 
 .feature-chip {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border: 1.5px solid #cbd5e1;
     border-radius: 14px;
-    padding: 18px 16px;
+    padding: 22px 18px;
     text-align: center;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
 }
 
-.feature-chip .icon { font-size: 22px; display: block; margin-bottom: 8px; }
+.feature-chip .icon {
+    font-size: 32px;
+    line-height: 1;
+    font-weight: 700;
+    color: #1d4ed8 !important;
+    display: block;
+    margin-bottom: 10px;
+}
 .feature-chip .label {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 24px;
+    font-weight: 700;
     color: #111827 !important;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
+    letter-spacing: -0.2px;
 }
-.feature-chip .desc { font-size: 12px; color: #6b7280 !important; line-height: 1.4; }
+.feature-chip .desc {
+    font-size: 13px;
+    color: #4b5563 !important;
+    line-height: 1.45;
+    font-weight: 500;
+}
 
 /* ── Input field ── */
 .stTextInput > div > div > input {
@@ -179,7 +193,7 @@ st.markdown("""
 /* ── Primary button ── */
 .stButton > button[kind="primary"] {
     background: #2563EB !important;
-    color: white !important;
+    color: #ffffff !important;
     border: none !important;
     border-radius: 12px !important;
     padding: 14px 28px !important;
@@ -187,6 +201,11 @@ st.markdown("""
     font-weight: 600 !important;
     transition: all 0.2s ease !important;
     box-shadow: 0 2px 8px rgba(37,99,235,0.3) !important;
+}
+.stButton > button[kind="primary"] *,
+.stButton > button[kind="primary"] p,
+.stButton > button[kind="primary"] span {
+    color: #ffffff !important;
 }
 .stButton > button[kind="primary"]:hover {
     background: #1d4ed8 !important;
@@ -348,9 +367,9 @@ _INTENT_MAP = {
 
 _EXAMPLE_TOPICS = [
     "sparse representation",
-    "multimodal LLM efficiency",
-    "graph neural networks for drug discovery",
-    "reinforcement learning from human feedback",
+    "multimodal LLMs",
+    "drug discovery GNNs",
+    "RLHF alignment",
     "vision transformers",
 ]
 
@@ -361,7 +380,7 @@ st.markdown('<div class="main-container">', unsafe_allow_html=True)
 # Hero
 st.markdown("""
 <div class="hero-title">Cherry Picker</div>
-<div class="hero-sub">hope other lazy researchers will like this too</div>
+<div class="hero-sub">hope other researchers will like this too</div>
 """, unsafe_allow_html=True)
 
 # Feature chips (3-column symmetric)
@@ -637,12 +656,10 @@ if "report" in st.session_state and st.session_state["report"]:
     </div>
     """, unsafe_allow_html=True)
 
-    # Report in full-width card
-    st.markdown('<div class="report-wrapper" style="max-width:1100px; margin:0 auto;">', unsafe_allow_html=True)
+    # Report content
     st.markdown(f"### {q.get('display_name', 'Research Report')}")
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
     st.markdown(st.session_state["report"])
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # Download buttons
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)

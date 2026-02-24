@@ -202,16 +202,11 @@ def format_rejection_for_ui(validation_result: dict) -> str:
         return ""
 
     msg = validation_result.get("user_message", "Invalid input.")
-    suggestion = validation_result.get("suggestion")
 
     lines = [
         "❌ **We couldn't process this topic.**",
         "",
         f"*Reason:* {msg}",
     ]
-
-    if suggestion:
-        lines.append("")
-        lines.append(f"💡 **Did you mean something like:** '{suggestion}'?")
 
     return "\n".join(lines)
