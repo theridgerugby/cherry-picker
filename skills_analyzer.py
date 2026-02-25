@@ -16,14 +16,14 @@ from config import GEMINI_MODEL, DOMAIN, MIN_PAPERS_FOR_ROADMAP, SKILL_CACHE_PAT
 SKILL_EXTRACTION_SYSTEM_PROMPT = """You are a research skill analyst. Given a structured paper summary, extract ALL technical
 and disciplinary knowledge required to understand, reproduce, or extend this work.
 
-Be specific and granular. Do not generalize "machine learning" when you can say "sparse autoencoder".
+Be specific and granular. Do not use generic terms like "machine learning" or "biology" when you can name the precise specific technique or concept.
 For interdisciplinary requirements, identify the source discipline explicitly.
 
 Output ONLY valid JSON:
 {
-  "ml_methods": ["string"],
-  "math_foundations": ["string"],
-  "programming_tools": ["string"],
+  "core_theory": ["string"],
+  "applied_methods": ["string"],
+  "engineering_tools": ["string"],
   "domain_knowledge": ["string"],
   "interdisciplinary": [
     {
@@ -50,7 +50,7 @@ Extract all required skills now."""
 # ── Prompt：学习路线图 ─────────────────────────────────────────────────────────
 
 ROADMAP_SYSTEM_PROMPT = """You are a research mentor. Given a frequency-ranked list of skills required across recent papers
-in a research domain, design a practical learning roadmap for someone with a CS undergraduate background.
+in a research domain, design a practical learning roadmap for a researcher looking to enter this specific field.
 
 Output ONLY valid JSON — an array of stages:
 [
@@ -249,10 +249,10 @@ _SKILL_CATEGORIES = ["core_theory", "applied_methods", "engineering_tools"]
 
 # Mapping from LLM output keys → new category
 _LLM_KEY_TO_CATEGORY = {
-    "math_foundations": "core_theory",
-    "ml_methods": "core_theory",
+    "core_theory": "core_theory",
+    "applied_methods": "applied_methods",
     "domain_knowledge": "applied_methods",
-    "programming_tools": "engineering_tools",
+    "engineering_tools": "engineering_tools",
 }
 
 _MAX_PER_BUCKET = 8   # cap per tier per category
@@ -371,6 +371,7 @@ def _format_skill_bucket(bucket: dict) -> str:
 def generate_learning_roadmap(
     aggregated: dict,
     llm: ChatGoogleGenerativeAI = None,
+    domain_name: str = DOMAIN,
     paper_count: int = 0,
 ) -> list[dict] | None:
     """
@@ -403,7 +404,7 @@ def generate_learning_roadmap(
     inter_str = "\n".join(inter_lines) if inter_lines else "  (none)"
 
     user_msg = ROADMAP_USER_TEMPLATE.format(
-        domain=DOMAIN,
+        domain=domain_name,
         count=sum(
             len(aggregated["must_have"].get(c, []))
             + len(aggregated["important"].get(c, []))
@@ -579,9 +580,9 @@ if __name__ == "__main__":
     # 聚合测试
     mock_skills = [
         {
-            "ml_methods": ["sparse autoencoder", "contrastive learning", "PyTorch"],
-            "math_foundations": ["linear algebra", "convex optimization"],
-            "programming_tools": ["PyTorch", "Python"],
+            "core_theory": ["sparse autoencoder", "contrastive learning", "PyTorch"],
+            "applied_methods": ["linear algebra", "convex optimization"],
+            "engineering_tools": ["PyTorch", "Python"],
             "domain_knowledge": ["recommender systems"],
             "interdisciplinary": [
                 {"discipline": "Neuroscience", "specific_knowledge": "sparse coding in V1",
@@ -589,9 +590,9 @@ if __name__ == "__main__":
             ],
         },
         {
-            "ml_methods": ["sparse autoencoder", "dictionary learning"],
-            "math_foundations": ["linear algebra (vectors, matrices)", "matrix factorization"],
-            "programming_tools": ["pytorch", "scikit-learn", "numpy"],
+            "core_theory": ["sparse autoencoder", "dictionary learning"],
+            "applied_methods": ["linear algebra (vectors, matrices)", "matrix factorization"],
+            "engineering_tools": ["pytorch", "scikit-learn", "numpy"],
             "domain_knowledge": ["computer vision"],
             "interdisciplinary": [
                 {"discipline": "neuroscience", "specific_knowledge": "visual cortex",
@@ -599,9 +600,9 @@ if __name__ == "__main__":
             ],
         },
         {
-            "ml_methods": ["sparse autoencoder"],
-            "math_foundations": ["linear algebra", "calculus (multivariate)"],
-            "programming_tools": ["tensorflow", "scipy"],
+            "core_theory": ["sparse autoencoder"],
+            "applied_methods": ["linear algebra", "calculus (multivariate)"],
+            "engineering_tools": ["tensorflow", "scipy"],
             "domain_knowledge": ["NLP"],
             "interdisciplinary": [
                 {"discipline": "Linguistics", "specific_knowledge": "syntax",

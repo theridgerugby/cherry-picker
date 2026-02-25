@@ -70,6 +70,7 @@ Analyze the trends now."""
 def analyze_trends(
     papers: list[dict],
     llm: ChatGoogleGenerativeAI = None,
+    domain_name: str = DOMAIN,
     top_n: int = TREND_TOP_N,
     threshold: int = CREDIBILITY_THRESHOLD,
 ) -> dict:
@@ -105,7 +106,7 @@ def analyze_trends(
                 "to gather more high-credibility papers."
             ),
             # keep these keys so callers that don't check insufficient_data still work
-            "domain": DOMAIN,
+            "domain": domain_name,
             "analysis_date": datetime.now().strftime("%Y-%m-%d"),
             "macro_trends": [],
             "micro_trends": [],
@@ -133,7 +134,7 @@ def analyze_trends(
     today = datetime.now().strftime("%Y-%m-%d")
 
     user_prompt = TREND_USER_TEMPLATE.format(
-        domain=DOMAIN,
+        domain=domain_name,
         date=today,
         count=len(top_papers),
         paper_summaries=paper_summaries_str,

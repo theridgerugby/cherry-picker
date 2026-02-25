@@ -92,10 +92,10 @@ class PaperExtractionSchema(BaseModel):
         ge=1,
         le=5,
         description=(
-            "Domain specificity score on a strict 1-5 scale for sparse representation focus. "
-            "1 = General ML paper, sparse representation is incidental. "
-            "3 = Core method uses sparsity but applies to broad domains. "
-            "5 = Sparse representation IS the central contribution and primary topic. "
+            "Domain specificity score on a strict 1-5 scale for the target research domain. "
+            "1 = Primarily about another field, target domain is incidental or absent. "
+            "3 = Partially relevant to the target domain, but contribution is broadly scoped. "
+            "5 = The target domain is the central contribution and primary topic. "
             "Use 2 or 4 if evidence is clearly between these anchors."
         ),
     )
@@ -106,7 +106,7 @@ EXTRACTION_JSON_SCHEMA = json.dumps(
 )
 
 # ── Prompt 1：结构化提取 ──────────────────────────────────────────────────────
-EXTRACTION_SYSTEM_PROMPT = """You are a research paper analyst specializing in signal processing and machine learning.
+EXTRACTION_SYSTEM_PROMPT_TEMPLATE = """You are a research paper analyst.
 Given the title, abstract, and metadata of an academic paper, extract structured information strictly in JSON format.
 
 Rules:
@@ -118,6 +118,13 @@ Rules:
 - "industrial_readiness_score", "theoretical_depth", and "domain_specificity" must each be integers from 1 to 5.
 - For each score, strictly follow the rubric anchors in the schema description for 1, 3, and 5.
 - Never assign a score of 5 unless there is explicit evidence for the 5-level criteria.
+- For "domain_specificity": Rate how central the paper is to: {domain}
+  1 = This paper is primarily about a different field;
+      the topic '{domain}' is incidental or absent.
+  3 = The paper applies methods that touch on '{domain}'
+      but its core contribution spans broader areas.
+  5 = '{domain}' IS the central topic and primary contribution.
+  Use 2 or 4 if evidence is clearly between these anchors.
 - data_modality must describe what data the METHOD actually operates on, not the paper topic.
   Examples:
   - A paper about galaxy classification using CNNs -> "image"
@@ -132,7 +139,7 @@ Rules:
   If no specific named baseline is mentioned in the abstract, return null.
 
 Output Schema:
-{json_schema}""".format(json_schema=EXTRACTION_JSON_SCHEMA)
+{json_schema}"""
 
 EXTRACTION_USER_TEMPLATE = """Title: {title}
 Authors: {authors}
@@ -373,7 +380,11 @@ def enrich_open_source_with_paperswithcode(paper_title: str, extracted: dict) ->
         return
 
 
-def extract_paper_info(paper: dict, llm: ChatGoogleGenerativeAI) -> dict | None:
+def extract_paper_info(
+    paper: dict,
+    llm: ChatGoogleGenerativeAI,
+    domain: str = "the target research domain",
+) -> dict | None:
     """
     用 Gemini 提取单篇论文的结构化信息。
     返回解析好的 dict，失败时返回 None。
@@ -384,10 +395,17 @@ def extract_paper_info(paper: dict, llm: ChatGoogleGenerativeAI) -> dict | None:
         published_date=paper["published_date"],
         abstract=paper["abstract"],
     )
+    domain_for_prompt = (domain or "the target research domain").strip()
+    if not domain_for_prompt:
+        domain_for_prompt = "the target research domain"
+    system_prompt = EXTRACTION_SYSTEM_PROMPT_TEMPLATE.format(
+        domain=domain_for_prompt,
+        json_schema=EXTRACTION_JSON_SCHEMA,
+    )
 
     try:
         response = llm.invoke([
-            SystemMessage(content=EXTRACTION_SYSTEM_PROMPT),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=user_msg),
         ])
         extracted_raw = _strip_disallowed_url_fields(
@@ -491,7 +509,7 @@ if __name__ == "__main__":
     print(f"\n开始提取 {len(papers)} 篇论文...\n")
     extracted = []
     for p in papers[:3]:  # 先测试3篇
-        result = extract_paper_info(p, llm)
+        result = extract_paper_info(p, llm, domain="the target research domain")
         if result:
             extracted.append(result)
             print(f"✅ {result['title'][:60]}...")

@@ -16,44 +16,80 @@ The user's input may be colloquial or vague. Your job is to produce
 a precise arXiv boolean query that maximizes recall of relevant papers
 while minimizing noise.
 
-You MUST use arXiv category operators. Use this category reference:
+You MUST correctly identify the PRIMARY DISCIPLINE of the topic first,
+then select categories accordingly.
+
+Full arXiv category reference:
+  --- Computer Science / ML ---
   cs.LG  = Machine Learning
-  cs.AI  = Artificial Intelligence  
+  cs.AI  = Artificial Intelligence
   cs.CV  = Computer Vision
   cs.CL  = Natural Language Processing
   cs.NE  = Neural and Evolutionary Computing
   cs.IR  = Information Retrieval
+  cs.RO  = Robotics
   eess.SP = Signal Processing
   stat.ML = Statistics / Machine Learning
   math.OC = Optimization and Control
-  q-bio   = Quantitative Biology (for interdisciplinary topics)
+
+  --- Physical Sciences ---
+  cond-mat.mtrl-sci = Materials Science
+  cond-mat.soft     = Soft Condensed Matter
+  physics.app-ph    = Applied Physics
+  physics.chem-ph   = Chemical Physics
+  physics.flu-dyn   = Fluid Dynamics
+  quant-ph          = Quantum Physics
+
+  --- Life Sciences ---
+  q-bio.BM = Biomolecules
+  q-bio.CB = Cell Behavior
+  q-bio.NC = Neurons and Cognition
+
+  --- Engineering / Interdisciplinary ---
+  eess.IV = Image and Video Processing
+  eess.SY = Systems and Control
+  math.NA = Numerical Analysis
+
+DISCIPLINE DETECTION RULES (apply in order):
+1. If the topic involves materials, coatings, surfaces, polymers, alloys,
+   nanostructures, or chemical properties -> use cond-mat.mtrl-sci and/or physics.app-ph
+2. If the topic involves biology, medicine, proteins, cells -> use q-bio categories
+3. If the topic involves fluid, heat transfer, aerodynamics -> use physics.flu-dyn
+4. If the topic involves robotics, control systems -> use cs.RO and eess.SY
+5. If the topic is clearly ML/AI -> use cs.LG, cs.AI, stat.ML
+6. If the topic is INTERDISCIPLINARY (e.g. AI for materials, ML for drug discovery),
+   include BOTH the domain category AND the ML category
+
+CRITICAL RULE: Never force CS/ML categories onto non-CS topics.
+"anti-ice coating" is materials science -> use cond-mat.mtrl-sci, NOT cs.LG.
 
 Query construction rules:
-- Always include at least one cat: filter
+- Always include at least one cat: filter matching the detected discipline
 - Use ti: for specific technical terms (high precision)
 - Use abs: for broader concept terms (higher recall)
-- Combine categories with OR inside parentheses
 - Keep total query under 300 characters
-- Do NOT include date ranges in the query string
-  (date filtering is handled separately by the fetcher)
+- Do NOT include date ranges
 
 Examples:
-Input: "machine learning"
-Output: abs:"machine learning" AND (cat:cs.LG OR cat:cs.AI OR stat.ML)
-  AND (ti:efficient OR ti:novel OR ti:robust OR ti:scalable)
+Input: "anti-ice coating"
+Output: (ti:"anti-ice" OR ti:icephobic OR ti:"ice adhesion"
+  OR abs:"superhydrophobic") AND (cat:cond-mat.mtrl-sci OR cat:physics.app-ph)
+
+Input: "machine learning for drug discovery"
+Output: (abs:"drug discovery" OR abs:"molecular property")
+  AND (cat:cs.LG OR cat:q-bio.BM) AND (ti:graph OR ti:transformer OR ti:generative)
 
 Input: "sparse representation"
 Output: (ti:"sparse representation" OR ti:"sparse coding"
   OR ti:"dictionary learning") AND (cat:cs.LG OR eess.SP OR stat.ML)
 
-Input: "multimodal architectures that reduce GPU memory"
-Output: (ti:multimodal OR abs:multimodal)
-  AND (ti:"memory efficient" OR ti:"parameter efficient" OR ti:lightweight)
-  AND (cat:cs.LG OR cat:cs.CV OR cat:cs.CL)
+Input: "climate model inference"
+Output: (abs:"climate model" OR ti:"weather prediction" OR ti:forecasting)
+  AND (cat:cs.LG OR cat:physics.app-ph OR cat:eess.SY)
 
-Input: "drug discovery using graphs"
-Output: (ti:"graph neural" OR ti:GNN OR abs:"molecular graph")
-  AND (cat:cs.LG OR q-bio) AND (ti:drug OR ti:molecular OR ti:protein)
+Input: "quantum error correction"
+Output: (ti:"quantum error" OR ti:"quantum fault" OR abs:"qubit")
+  AND (cat:quant-ph OR cat:cs.IT)
 
 Output ONLY the raw query string. No JSON, no explanation, no quotes around
 the entire string. Just the query."""

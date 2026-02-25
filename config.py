@@ -67,12 +67,42 @@ EMPTY_SECTION_PHRASES = [
 
 # ── arXiv 类别参考（供文档使用，不参与代码逻辑）─────────────────────────────
 ARXIV_CATEGORY_MAP = {
-    "cs.LG":   "Machine Learning",
-    "cs.AI":   "Artificial Intelligence",
-    "cs.CV":   "Computer Vision",
-    "cs.CL":   "NLP",
-    "cs.NE":   "Neural Computing",
+    # Computer Science
+    "cs.LG": "Machine Learning",
+    "cs.AI": "Artificial Intelligence",
+    "cs.CV": "Computer Vision",
+    "cs.CL": "NLP",
+    "cs.NE": "Neural Computing",
+    "cs.RO": "Robotics",
+    "cs.IR": "Information Retrieval",
+    "cs.IT": "Information Theory",
+    # Signal Processing / Systems
     "eess.SP": "Signal Processing",
+    "eess.IV": "Image & Video Processing",
+    "eess.AS": "Audio & Speech",
+    "eess.SY": "Systems & Control",
+    # Statistics / Math
     "stat.ML": "Statistics ML",
     "math.OC": "Optimization",
+    "math.NA": "Numerical Analysis",
+    # Physics
+    "physics.app-ph": "Applied Physics",
+    "physics.chem-ph": "Chemical Physics",
+    "physics.flu-dyn": "Fluid Dynamics",
+    "physics.ao-ph": "Atmospheric & Oceanic Physics",
+    "quant-ph": "Quantum Physics",
+    # Condensed Matter / Materials
+    "cond-mat.mtrl-sci": "Materials Science",
+    "cond-mat.soft": "Soft Matter",
+    "cond-mat.mes-hall": "Mesoscale & Nanoscale",
+    # Astrophysics
+    "astro-ph.ga": "Galaxies",
+    "astro-ph.co": "Cosmology",
+    "astro-ph.im": "Instrumentation & Methods",
+    "astro-ph.he": "High Energy Astrophysics",
+    # Biology
+    "q-bio.BM": "Biomolecules",
+    "q-bio.CB": "Cell Behavior",
+    "q-bio.MN": "Molecular Networks",
+    "q-bio.NC": "Neurons & Cognition",
 }

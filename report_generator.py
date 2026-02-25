@@ -164,8 +164,9 @@ def retrieve_all_papers_from_db() -> list[dict]:
     """从向量数据库取出所有存储的论文"""
     try:
         db = load_db()
-        # 用一个宽泛查询取所有论文
-        results = db.similarity_search("sparse representation dictionary learning", k=50)
+        # Use the configured domain as broad retrieval query.
+        search_query = (DOMAIN or "research papers").strip() or "research papers"
+        results = db.similarity_search(search_query, k=50)
         papers = []
         seen_ids = set()
         for doc in results:

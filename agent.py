@@ -1,4 +1,4 @@
-# agent.py - ReAct Agent entrypoint wiring all tools.
+﻿# agent.py - ReAct Agent entrypoint wiring all tools.
 
 import json
 from dotenv import load_dotenv
@@ -26,6 +26,7 @@ _papers_extracted = []
 _llm = None
 _llm_fast = None
 _low_confidence_mode = False
+_current_display_name: str = ""
 
 FILTER_CONFIG = {
     "min_relevance_score": 5,
@@ -46,6 +47,12 @@ def get_llm_fast():
     if _llm_fast is None:
         _llm_fast = ChatGoogleGenerativeAI(model=GEMINI_MODEL_FAST, temperature=0)
     return _llm_fast
+
+
+def set_current_topic(display_name: str):
+    """Called by app.py before running the pipeline to set search context."""
+    global _current_display_name
+    _current_display_name = display_name.strip()
 
 
 def _apply_domain_filter(papers: list[dict], domain: str) -> list[dict]:
@@ -92,7 +99,8 @@ def search_arxiv(query_override: str = "") -> str:
     if not fetched:
         return "No papers found. Check network connectivity or broaden the query."
 
-    _papers_raw = _apply_domain_filter(fetched, DOMAIN)
+    current_domain = _current_display_name.strip() or DOMAIN
+    _papers_raw = _apply_domain_filter(fetched, current_domain)
     if not _papers_raw:
         return "No papers passed the domain relevance filter. Broaden the scope or time window."
 
@@ -134,7 +142,8 @@ def extract_and_store_paper(paper_index: str) -> str:
 
     paper = _papers_raw[idx]
     llm = get_llm()
-    result = extract_paper_info(paper, llm)
+    current_domain = _current_display_name.strip() or DOMAIN
+    result = extract_paper_info(paper, llm, domain=current_domain)
 
     if result is None:
         return f"Extraction failed: {paper['title'][:60]}"
@@ -194,7 +203,8 @@ def analyze_industry_trends(dummy: str = "") -> str:
     """
     try:
         db = load_db()
-        results = db.similarity_search("sparse representation", k=50)
+        search_query = _current_display_name.strip() or DOMAIN
+        results = db.similarity_search(search_query, k=50)
         papers = []
         seen_ids = set()
         for doc in results:
@@ -210,9 +220,9 @@ def analyze_industry_trends(dummy: str = "") -> str:
         if not papers:
             return "Error: vector DB is empty. Extract papers first."
 
-        scored_papers = [score_paper_credibility(p, DOMAIN) for p in papers]
+        scored_papers = [score_paper_credibility(p, search_query) for p in papers]
         llm = get_llm()
-        trend_data = analyze_trends(scored_papers, llm)
+        trend_data = analyze_trends(scored_papers, llm, search_query)
         return json.dumps(trend_data, ensure_ascii=False, indent=2)
     except Exception as e:
         return f"Trend analysis failed: {e}"
@@ -225,7 +235,8 @@ def analyze_required_skills(dummy: str = "") -> str:
     """
     try:
         db = load_db()
-        results = db.similarity_search("sparse representation", k=50)
+        search_query = _current_display_name.strip() or DOMAIN
+        results = db.similarity_search(search_query, k=50)
         papers = []
         seen_ids = set()
         for doc in results:
@@ -252,7 +263,7 @@ def analyze_required_skills(dummy: str = "") -> str:
             return "Skill extraction failed for all papers."
 
         aggregated = aggregate_skills(all_skills)
-        roadmap = generate_learning_roadmap(aggregated, llm)
+        roadmap = generate_learning_roadmap(aggregated, llm, search_query, len(papers))
         aggregated["learning_roadmap"] = roadmap
         return json.dumps(aggregated, ensure_ascii=False, indent=2)
     except Exception as e:

@@ -916,6 +916,13 @@ if analyze_clicked and topic.strip():
     query_result = generate_arxiv_query(topic, keywords, llm_fast)
     display_name = query_result["display_name"]
     arxiv_query  = query_result["arxiv_query"]
+    try:
+        # Keep agent tooling aligned with the active Streamlit topic when imported.
+        from agent import set_current_topic
+
+        set_current_topic(display_name)
+    except Exception:
+        pass
 
     st.success(f"Searching arXiv for: **{display_name}**")
     st.caption(f"`{arxiv_query}`")
@@ -938,6 +945,11 @@ if analyze_clicked and topic.strip():
         papers = fetch_result["papers"]
         count  = fetch_result["paper_count"]
         st.write(f"Found **{count}** papers (window: {fetch_result['days_used']}d)")
+        if fetch_result.get("query_used") and fetch_result["query_used"] != arxiv_query:
+            st.caption(
+                f"⚠️ Category filter removed (no results found with it). "
+                f"Fallback query: `{fetch_result['query_used']}`"
+            )
 
         if fetch_result["window_expanded"]:
             st.write(f"Expanded to {fetch_result['days_used']}d to find enough papers.")
@@ -1003,7 +1015,10 @@ if analyze_clicked and topic.strip():
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor(max_workers=10) as ex:
-            futures = {ex.submit(extract_paper_info, p, llm_fast): p for p in papers}
+            futures = {
+                ex.submit(extract_paper_info, p, llm_fast, display_name): p
+                for p in papers
+            }
             done = 0
             for future in as_completed(futures):
                 done += 1
