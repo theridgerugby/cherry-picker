@@ -1047,34 +1047,15 @@ if analyze_clicked and topic.strip():
         ) if scored else 0
 
         st.write("Generating report...")
-        llm_deep = _make_llm(deep=True)
-        with ThreadPoolExecutor(max_workers=3) as ex:
-            report_days = fetch_result.get("days_used")
-            try:
-                report_sig_params = inspect.signature(generate_report).parameters
-            except (TypeError, ValueError):
-                report_sig_params = {}
-            if "days" in report_sig_params:
-                fut_report = ex.submit(generate_report, extracted, display_name, report_days)
-            elif "domain" in report_sig_params:
-                fut_report = ex.submit(generate_report, extracted, display_name)
-            else:
-                fut_report = ex.submit(generate_report, extracted)
-            try:
-                gaps_sig_params = inspect.signature(generate_extrapolated_gaps).parameters
-            except (TypeError, ValueError):
-                gaps_sig_params = {}
-            if "domain" in gaps_sig_params:
-                fut_gaps = ex.submit(generate_extrapolated_gaps, extracted, llm_deep, display_name)
-            else:
-                fut_gaps = ex.submit(generate_extrapolated_gaps, extracted, llm_deep)
-            fut_matrix = (
-                ex.submit(render_methodology_matrix, extracted, llm_fast)
-                if len(extracted) >= MIN_PAPERS_FOR_COMPARISON else None
-            )
-            report        = fut_report.result()
-            gaps_data     = fut_gaps.result()
-            matrix_section = fut_matrix.result() if fut_matrix else None
+        from config import DAYS_BACK  # noqa: PLC0415
+        from report_generator import run_cached_parallel_agents  # noqa: PLC0415
+
+        report_days = fetch_result.get("days_used") or DAYS_BACK
+        report, gaps_data, matrix_section = run_cached_parallel_agents(
+            papers=extracted,
+            domain=display_name,
+            days=report_days,
+        )
 
         if matrix_section:
             marker = "## 4."

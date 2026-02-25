@@ -1,22 +1,23 @@
-﻿# agent.py - ReAct Agent entrypoint wiring all tools.
+# agent.py - ReAct Agent entrypoint wiring all tools.
 
 import json
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.tools import tool
-from langchain.agents import create_agent
 
-from config import GEMINI_MODEL, GEMINI_MODEL_FAST, DOMAIN, MIN_PAPERS_TO_PROCESS, DAYS_BACK
-from paper_fetcher import fetch_recent_papers
+from dotenv import load_dotenv
+from langchain.agents import create_agent
+from langchain.tools import tool
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+from config import DAYS_BACK, DOMAIN, GEMINI_MODEL, GEMINI_MODEL_FAST, MIN_PAPERS_TO_PROCESS
+from credibility_scorer import score_paper_credibility
 from paper_extractor import (
     extract_paper_info,
-    store_papers_to_db,
     load_db,
     prefilter_papers,
+    store_papers_to_db,
 )
-from credibility_scorer import score_paper_credibility
+from paper_fetcher import fetch_recent_papers
+from skills_analyzer import aggregate_skills, extract_skills_from_paper, generate_learning_roadmap
 from trend_analyzer import analyze_trends
-from skills_analyzer import extract_skills_from_paper, aggregate_skills, generate_learning_roadmap
 
 load_dotenv()
 
@@ -29,9 +30,9 @@ _low_confidence_mode = False
 _current_display_name: str = ""
 
 FILTER_CONFIG = {
-    "min_relevance_score": 5,
+    "min_relevance_score": 6,
     "max_papers_after_filter": 10,
-    "require_core_domain_ratio": 0.6,  # at least 60% must be core domain
+    "require_core_domain_ratio": 0.7,  # at least 70% must be core domain
 }
 
 
@@ -70,7 +71,8 @@ def _apply_domain_filter(papers: list[dict], domain: str) -> list[dict]:
         )
 
     filtered = [
-        p for p in scored_papers
+        p
+        for p in scored_papers
         if p.get("relevance_score", 0) >= FILTER_CONFIG["min_relevance_score"]
         and p.get("is_core_domain")
     ]
@@ -80,7 +82,7 @@ def _apply_domain_filter(papers: list[dict], domain: str) -> list[dict]:
         key=lambda x: x.get("relevance_score", 0),
         reverse=True,
     )
-    filtered = filtered[:FILTER_CONFIG["max_papers_after_filter"]]
+    filtered = filtered[: FILTER_CONFIG["max_papers_after_filter"]]
 
     print(f"[Filter] {len(papers)} → {len(filtered)} papers after domain filter")
     return filtered
@@ -270,14 +272,15 @@ def analyze_required_skills(dummy: str = "") -> str:
         return f"Skill analysis failed: {e}"
 
 
-AGENT_SYSTEM_PROMPT = f"""You are a research intelligence agent specialized in academic literature analysis.
-Your goal is to fetch, analyze, and prepare a set of recent papers on "{DOMAIN}" for report generation.
+def _build_agent_system_prompt(domain: str, days: int, min_papers: int) -> str:
+    return f"""You are a research intelligence agent specialized in academic literature analysis.
+Your goal is to fetch, analyze, and prepare a set of recent papers on "{domain}" for report generation.
 
 Rules:
-- After fetching papers with search_arxiv, extract up to {MIN_PAPERS_TO_PROCESS} papers using extract_and_store_paper.
-- If fewer than {MIN_PAPERS_TO_PROCESS} papers remain after domain filtering, process all available papers and continue.
+- After fetching papers with search_arxiv, extract up to {min_papers} papers using extract_and_store_paper.
+- If fewer than {min_papers} papers remain after domain filtering, process all available papers and continue.
 - If fewer than 3 papers remain after domain filtering, continue in low-confidence mode.
-- Prioritize papers with higher domain specificity to {DOMAIN} (domain_specificity 4-5).
+- Prioritize papers with higher domain specificity to {domain} (domain_specificity 4-5).
 - After extracting all target papers, call save_all_to_database.
 - After saving, call analyze_industry_trends to generate trend insights.
 - After trend analysis, call analyze_required_skills to generate a skills and learning roadmap.
@@ -285,9 +288,9 @@ Rules:
 - When all steps are complete, reply with a brief summary: how many papers found, how many processed, key themes.
 
 Today's task:
-Domain: {DOMAIN}
-Time range: last {DAYS_BACK} days
-Minimum papers to process: {MIN_PAPERS_TO_PROCESS}"""
+Domain: {domain}
+Time range: last {days} days
+Minimum papers to process: {min_papers}"""
 
 
 def run_agent():
@@ -302,16 +305,23 @@ def run_agent():
         analyze_required_skills,
     ]
 
+    current_domain = _current_display_name.strip() or DOMAIN
+    system_prompt = _build_agent_system_prompt(
+        domain=current_domain,
+        days=DAYS_BACK,
+        min_papers=MIN_PAPERS_TO_PROCESS,
+    )
+
     agent = create_agent(
         model=llm,
         tools=tools,
-        system_prompt=AGENT_SYSTEM_PROMPT,
+        system_prompt=system_prompt,
         debug=False,
     )
 
     print("\n" + "=" * 60)
     print("arXiv Agent started")
-    print(f"  Domain: {DOMAIN}")
+    print(f"  Domain: {current_domain}")
     print(f"  Goal: process papers from last {DAYS_BACK} days")
     print("=" * 60 + "\n")
 
@@ -320,7 +330,10 @@ def run_agent():
             "messages": [
                 {
                     "role": "user",
-                    "content": f"Start: fetch and process papers on {DOMAIN} from the last {DAYS_BACK} days.",
+                    "content": (
+                        f"Start: fetch and process papers on {current_domain} "
+                        f"from the last {DAYS_BACK} days."
+                    ),
                 }
             ]
         }

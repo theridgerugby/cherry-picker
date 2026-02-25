@@ -1,16 +1,15 @@
 # paper_extractor.py — Prompt 1：结构化提取论文信息，输出 JSON 存入向量数据库
 
 import json
-import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_chroma import Chroma
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from pydantic import BaseModel, Field, ValidationError, ConfigDict
 
-from config import GEMINI_MODEL, GEMINI_MODEL_FAST, CHROMA_DB_PATH, CHROMA_COLLECTION
+from dotenv import load_dotenv
+from langchain_chroma import Chroma
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from config import CHROMA_COLLECTION, CHROMA_DB_PATH, GEMINI_MODEL, GEMINI_MODEL_FAST
 from repo_extractor import extract_repo_candidates_for_paper
 
 load_dotenv()
@@ -20,7 +19,10 @@ class MethodologyMatrixSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     approach_type: str = Field(
-        description="One of: convex_optimization | greedy_algorithm | deep_learning | statistical | hybrid | theoretical"
+        description=(
+            "One of: convex_optimization | greedy_algorithm | deep_learning | statistical | "
+            "hybrid | theoretical | experimental | simulation | experimental_ml"
+        )
     )
     model_architecture: str | None = Field(
         default=None,
@@ -30,7 +32,10 @@ class MethodologyMatrixSchema(BaseModel):
         description="One of: supervised | self_supervised | unsupervised | semi_supervised"
     )
     data_modality: list[str] = Field(
-        description="List of modalities, e.g. image, text, graph, time_series, 3D_point_cloud"
+        description=(
+            "List of modalities, e.g. image, text, graph, time_series, 3D_point_cloud, "
+            "experimental_measurement, microscopy_image, simulation_data, none (theoretical)"
+        )
     )
     open_source: str = Field(description="One of: yes | no | unknown")
     theoretical_guarantees: str = Field(description="One of: yes | no")
@@ -51,18 +56,14 @@ class PaperExtractionSchema(BaseModel):
     problem_statement: str = Field(description="1-2 sentences")
     method_summary: str = Field(description="2-3 sentences")
     contributions: list[str] = Field(
-        min_length=2,
-        max_length=4,
-        description="List of 2-4 concise strings, each under 20 words."
+        min_length=2, max_length=4, description="List of 2-4 concise strings, each under 20 words."
     )
     limitations: str | None = Field(
         default=None,
         description="Extract only if explicitly mentioned in the abstract; otherwise null.",
     )
     method_keywords: list[str] = Field(
-        min_length=3,
-        max_length=6,
-        description="3-6 technical terms central to the method."
+        min_length=3, max_length=6, description="3-6 technical terms central to the method."
     )
     methodology_matrix: MethodologyMatrixSchema
     industrial_readiness_score: int = Field(
@@ -70,10 +71,13 @@ class PaperExtractionSchema(BaseModel):
         le=5,
         description=(
             "Industrial readiness score on a strict 1-5 scale. "
-            "1 = Pure theory, no code, no experiments on real data. "
-            "3 = Has experiments but on toy datasets, no open-source code. "
-            "5 = Open-source code available, tested on production-scale benchmarks. "
-            "Use 2 or 4 if evidence is clearly between these anchors."
+            "For ML/CS papers: 1=pure theory, 3=toy/synthetic experiments without open-source code, "
+            "5=open-source code plus production-scale benchmarks. "
+            "For materials/physics/chemistry/engineering papers: 1=purely theoretical model, "
+            "2=proof-of-concept on idealized substrates, 3=real industrial materials in realistic lab "
+            "conditions, 4=scalable fabrication validated under realistic operating conditions, "
+            "5=pilot-scale or industry validation with standards and cost/scalability analysis. "
+            "Use 2 or 4 if evidence is clearly between anchors."
         ),
     )
     theoretical_depth: int = Field(
@@ -115,8 +119,6 @@ Rules:
 - "limitations" should be extracted only if explicitly mentioned in the abstract; otherwise null.
 - "method_keywords" should be 3-6 technical terms central to the method.
 - "industrial_readiness_score", "theoretical_depth", and "domain_specificity" must each be integers from 1 to 5.
-- For each score, strictly follow the rubric anchors in the schema description for 1, 3, and 5.
-- Never assign a score of 5 unless there is explicit evidence for the 5-level criteria.
 - For "domain_specificity": Rate how central the paper is to: {domain}
   1 = This paper is primarily about a different field;
       the topic '{domain}' is incidental or absent.
@@ -125,13 +127,46 @@ Rules:
   5 = '{domain}' IS the central topic and primary contribution.
   Use 2 or 4 if evidence is clearly between these anchors.
 - data_modality must describe what data the METHOD actually operates on, not the paper topic.
-  Examples:
-  - A paper about galaxy classification using CNNs -> "image"
-  - A paper about stock prediction using RNNs -> "time_series"
-  - A paper about theoretical physics with no experiments -> "none (theoretical)"
-  - A paper about text classification -> "text"
-  If the paper is purely theoretical with no experiments, set data_modality to
-  ["none (theoretical)"].
+  For ML/CS papers:
+  - CNN/ViT on photographs -> ["image"]
+  - Time-series forecasting -> ["time_series"]
+  - Text classification -> ["text"]
+  - Graph neural networks -> ["graph"]
+  For materials science / physics / chemistry / biology papers:
+  - Contact angle, force, or other instrument measurements -> ["experimental_measurement"]
+  - SEM, AFM, TEM, optical microscopy images -> ["microscopy_image"]
+  - CFD, molecular dynamics, FEM simulation outputs -> ["simulation_data"]
+  - Mixed experimental + simulation -> ["experimental_measurement", "simulation_data"]
+  If the paper is purely theoretical with no experiments or simulations:
+    set data_modality to ["none (theoretical)"]
+
+- approach_type must reflect HOW the core contribution was achieved:
+  - Physical/chemical lab experiments without ML -> "experimental"
+  - Numerical simulation (CFD, MD, FEM) without ML -> "simulation"
+  - ML model trained on experimental or simulation data -> "experimental_ml"
+  - Pure mathematical derivation or proof -> "theoretical"
+  - Statistical analysis of measured data (no prediction model) -> "statistical"
+  - ML/DL model trained on digital datasets -> "deep_learning"
+  - Combination of fundamentally different paradigms -> "hybrid"
+
+- industrial_readiness_score: integer 1-5 using the rubric appropriate to the paper type.
+
+  For ML / CS papers:
+    1 = Pure theory, no code, no experiments
+    3 = Has experiments but on toy/synthetic datasets, no open-source code
+    5 = Open-source code available, tested on production-scale benchmarks
+    Use 2 or 4 for evidence clearly between these anchors.
+
+  For materials science / physics / chemistry / engineering papers:
+    1 = Purely theoretical model; no synthesis, fabrication, or measurement
+    2 = Proof-of-concept on model/idealized materials (Si wafer, glass, PDMS) in tightly controlled conditions
+    3 = Tested on real industrial materials (metals, polymers, composites) under realistic lab conditions
+    4 = Demonstrated scalable fabrication route with performance validated under realistic operating conditions
+    5 = Pilot-scale or industry validation; comparison against ASTM/ISO standards; cost/scalability analysis present
+    Use 2 or 4 for evidence clearly between anchors.
+    IMPORTANT: Do NOT penalize materials papers for lacking open-source code.
+    The equivalent signal is a detailed, reproducible fabrication/synthesis protocol.
+
 - key_baseline_compared_to must be a specific named baseline (e.g. "ResNet-50",
   "GPT-3", "DINO"), not a category description (e.g. "traditional methods",
   "von Neumann computing", "conventional approaches").
@@ -146,29 +181,41 @@ Published: {published_date}
 Abstract: {abstract}"""
 
 
-PREFILTER_SYSTEM_PROMPT = """You are a domain relevance classifier. Given a paper title and abstract,
-score its relevance to the target domain.
+PREFILTER_SYSTEM_PROMPT = """You are a strict domain relevance classifier for academic paper filtering.
 
 Target domain: {domain}
 
-Return ONLY valid JSON:
-{{
-  "relevance_score": 1-10,
-  "is_core_domain": true | false,
-  "rejection_reason": "string or null",
-  "detected_actual_domain": "string"
-}}
+## PRIMARY RULE
+A paper is core-domain (is_core_domain=true) ONLY IF ALL THREE conditions are met:
+1. The paper's stated RESEARCH GOAL is to advance understanding or capability within {domain}
+2. The paper's NOVEL CONTRIBUTION would be cited by other researchers specifically working on {domain}
+3. The paper's methods, materials, or systems are designed specifically around {domain} problems
 
-Scoring rules:
-- 8-10: Core paper directly advancing {domain} research
-- 5-7: Adjacent field with clear {domain} application
-- 1-4: Tangentially related or primarily about a different field
+## MANDATORY REJECTION (always is_core_domain=false, score <= 3) if ANY applies:
+- The paper's primary novelty is in a DIFFERENT field and {domain} is only the experimental medium or substrate
+- The paper OBSERVES a {domain}-related phenomenon incidentally while studying something else
+- The paper's title, abstract opening, and conclusion all point to a primary field OTHER than {domain}
+- The paper uses {domain} as one example application of a general-purpose method
 
-Mark is_core_domain=false if:
-- The paper is primarily philosophy or science studies
-- The paper is a general ML tool applied to {domain} as a minor use case
-- The paper's primary contribution is to a different field
-- The title mentions {domain} but the method is domain-agnostic"""
+## SCORING GUIDE
+8-10: Core {domain} paper. Would appear in a {domain} literature review. Primary contribution advances {domain}.
+5-7:  Genuinely adjacent. {domain} is the primary experimental system even if methods come from elsewhere.
+2-4:  Uses {domain} incidentally. Primary field is clearly elsewhere.
+1:    Unrelated. {domain} appears only as a passing mention.
+
+## WORKED EXAMPLES (adapt reasoning to your specific domain)
+If domain = "Anti-Ice Coating":
+  - "Superhydrophobic nanostructure surface for icephobic applications" -> score=9, is_core_domain=true
+    (primary contribution IS anti-ice coatings)
+  - "Machine learning prediction of contact angle in laser-textured alloys" -> score=7, is_core_domain=true
+    (primary experimental system is surface wettability; directly applicable)
+  - "Acoustic manipulation of tangible icons on liquid droplet interfaces" -> score=2, is_core_domain=false
+    (primary field is HCI; droplets are only the manipulation medium)
+  - "Spontaneous epicuticular charging affects droplet dynamics on leaves" -> score=3, is_core_domain=false
+    (primary field is plant biology/ecophysiology; domain is incidental)
+
+Return ONLY valid JSON with no additional text:
+{{"relevance_score": <int 1-10>, "is_core_domain": <bool>, "rejection_reason": <str or null>, "detected_actual_domain": <str>}}"""
 
 PREFILTER_USER_TEMPLATE = """Title: {title}
 Abstract: {abstract}"""
@@ -184,12 +231,17 @@ def _clean_json_response(raw: str) -> str:
 
 
 VALID_APPROACHES = [
+    # Computational / ML methods
     "convex_optimization",
     "greedy_algorithm",
     "deep_learning",
     "statistical",
     "hybrid",
     "theoretical",
+    # Experimental / physical methods
+    "experimental",
+    "simulation",
+    "experimental_ml",
 ]
 
 
@@ -207,10 +259,12 @@ def _classify_domain_relevance(paper: dict, domain: str, llm_fast) -> dict:
     )
 
     try:
-        response = llm_fast.invoke([
-            SystemMessage(content=PREFILTER_SYSTEM_PROMPT.format(domain=domain)),
-            HumanMessage(content=user_prompt),
-        ])
+        response = llm_fast.invoke(
+            [
+                SystemMessage(content=PREFILTER_SYSTEM_PROMPT.format(domain=domain)),
+                HumanMessage(content=user_prompt),
+            ]
+        )
         parsed = json.loads(_clean_json_response(response.content))
         score = parsed.get("relevance_score", 1)
         try:
@@ -223,9 +277,9 @@ def _classify_domain_relevance(paper: dict, domain: str, llm_fast) -> dict:
         rejection_reason = parsed.get("rejection_reason")
         if rejection_reason is not None:
             rejection_reason = str(rejection_reason).strip() or None
-        detected_actual_domain = str(
-            parsed.get("detected_actual_domain", "unknown")
-        ).strip() or "unknown"
+        detected_actual_domain = (
+            str(parsed.get("detected_actual_domain", "unknown")).strip() or "unknown"
+        )
 
         return {
             "relevance_score": score,
@@ -322,10 +376,12 @@ def extract_paper_info(
     )
 
     try:
-        response = llm.invoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_msg),
-        ])
+        response = llm.invoke(
+            [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_msg),
+            ]
+        )
         extracted_raw = _strip_disallowed_url_fields(
             json.loads(_clean_json_response(response.content))
         )
@@ -410,18 +466,20 @@ def store_papers_to_db(papers_json: list[dict]) -> Chroma:
         text += f"Keywords: {', '.join(p.get('method_keywords', []))}"
 
         texts.append(text)
-        metadatas.append({
-            "arxiv_id": p.get("arxiv_id", ""),
-            "title": p.get("title", ""),
-            "published_date": p.get("published_date", ""),
-            "sub_domain": p.get("sub_domain", ""),
-            "industrial_readiness_score": str(p.get("industrial_readiness_score", "")),
-            "theoretical_depth": str(p.get("theoretical_depth", "")),
-            "domain_specificity": str(p.get("domain_specificity", "")),
-            "url": p.get("url", ""),
-            "github_url": p.get("github_url", ""),
-            "full_json": json.dumps(p),  # 把完整数据也存进去方便后续取用
-        })
+        metadatas.append(
+            {
+                "arxiv_id": p.get("arxiv_id", ""),
+                "title": p.get("title", ""),
+                "published_date": p.get("published_date", ""),
+                "sub_domain": p.get("sub_domain", ""),
+                "industrial_readiness_score": str(p.get("industrial_readiness_score", "")),
+                "theoretical_depth": str(p.get("theoretical_depth", "")),
+                "domain_specificity": str(p.get("domain_specificity", "")),
+                "url": p.get("url", ""),
+                "github_url": p.get("github_url", ""),
+                "full_json": json.dumps(p),  # 把完整数据也存进去方便后续取用
+            }
+        )
         ids.append(p.get("arxiv_id", f"paper_{len(ids)}"))
 
     db = Chroma.from_texts(

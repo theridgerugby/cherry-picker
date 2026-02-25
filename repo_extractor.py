@@ -370,7 +370,47 @@ def normalize_dedupe_validate(candidates: list[dict]) -> list[dict]:
     return normalized
 
 
-def _score_candidate(candidate: dict, paper_title: str) -> float:
+def _semantic_relevance_penalty(
+    repo_url: str,
+    paper_title: str,
+    paper_keywords: list[str] | None = None,
+) -> float:
+    """
+    Returns a confidence penalty (0.0-0.45) based on how unrelated the repo name
+    appears to be to the paper's title and keywords.
+    0.0  = no penalty (repo name clearly related)
+    0.25 = mild penalty (no overlap but plausible)
+    0.45 = heavy penalty (zero overlap, likely a false positive)
+    """
+    parts = repo_url.rstrip("/").split("/")
+    if len(parts) < 2:
+        return 0.45
+    repo_name = parts[-1].lower()
+
+    paper_tokens = _significant_tokens(paper_title)
+    kw_tokens: set[str] = set()
+    for kw in paper_keywords or []:
+        kw_tokens.update(_significant_tokens(kw))
+    all_paper_tokens = paper_tokens | kw_tokens
+
+    if not all_paper_tokens or not _significant_tokens(repo_name):
+        return 0.0  # Cannot judge - no penalty.
+
+    repo_tokens = _significant_tokens(repo_name)
+    overlap = len(all_paper_tokens & repo_tokens)
+
+    if overlap >= 2:
+        return 0.0
+    if overlap == 1:
+        return 0.15
+    return 0.45  # zero overlap - likely unrelated
+
+
+def _score_candidate(
+    candidate: dict,
+    paper_title: str,
+    paper_keywords: list[str] | None = None,
+) -> float:
     base = SOURCE_BASE_SCORE.get(str(candidate.get("source", "")), 0.45)
     sources = candidate.get("sources", [])
     multi_source_bonus = min(0.08, max(0, len(sources) - 1) * 0.04)
@@ -389,16 +429,28 @@ def _score_candidate(candidate: dict, paper_title: str) -> float:
         overlap = len(title_tokens & repo_tokens) / max(1, min(len(title_tokens), len(repo_tokens)))
     overlap_bonus = overlap * 0.08
 
-    score = base + multi_source_bonus + verified_bonus + official_bonus + stars_bonus + overlap_bonus
+    penalty = _semantic_relevance_penalty(
+        candidate.get("repo_url", ""),
+        paper_title,
+        paper_keywords,
+    )
+
+    score = (
+        base + multi_source_bonus + verified_bonus + official_bonus + stars_bonus + overlap_bonus
+    ) * (1.0 - penalty)
     return round(max(0.0, min(1.0, score)), 4)
 
 
-def score_and_rank(candidates: list[dict], paper_title: str) -> list[dict]:
+def score_and_rank(
+    candidates: list[dict],
+    paper_title: str,
+    paper_keywords: list[str] | None = None,
+) -> list[dict]:
     """Step 5: score and rank candidates."""
     ranked = []
     for candidate in candidates:
         enriched = dict(candidate)
-        enriched["confidence"] = _score_candidate(enriched, paper_title)
+        enriched["confidence"] = _score_candidate(enriched, paper_title, paper_keywords)
         ranked.append(enriched)
 
     ranked.sort(
@@ -434,7 +486,8 @@ def extract_repo_candidates_for_paper(paper: dict, top_k: int = 3) -> dict:
         raw_candidates.extend(extract_urls_from_pdf_or_tex(paper))
 
     normalized = normalize_dedupe_validate(raw_candidates)
-    ranked = score_and_rank(normalized, title)
+    keywords = paper.get("method_keywords") or []
+    ranked = score_and_rank(normalized, title, paper_keywords=keywords)
 
     high_conf = [c for c in ranked if c.get("confidence", 0.0) >= 0.60]
     top_candidates = high_conf[:top_k] if high_conf else ranked[:top_k]
