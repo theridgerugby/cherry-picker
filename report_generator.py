@@ -4,23 +4,34 @@ import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from config import (
-    GEMINI_MODEL, GEMINI_MODEL_FAST, THINKING_BUDGET,
-    DOMAIN, REPORT_OUTPUT_PATH, DAYS_BACK,
-    MIN_PAPERS_FOR_TREND_ANALYSIS, MIN_PAPERS_FOR_ROADMAP, MIN_PAPERS_FOR_COMPARISON,
-    EMPTY_SECTION_PHRASES, CREDIBILITY_THRESHOLD, LOW_CONFIDENCE_REPORT_MODE,
+    CREDIBILITY_THRESHOLD,
+    DAYS_BACK,
+    DOMAIN,
+    EMPTY_SECTION_PHRASES,
+    GEMINI_MODEL,
+    GEMINI_MODEL_FAST,
+    LOW_CONFIDENCE_REPORT_MODE,
+    MIN_PAPERS_FOR_COMPARISON,
+    MIN_PAPERS_FOR_ROADMAP,
+    MIN_PAPERS_FOR_TREND_ANALYSIS,
+    REPORT_OUTPUT_PATH,
+    THINKING_BUDGET,
 )
-from paper_extractor import load_db
 from credibility_scorer import score_paper_credibility
-from trend_analyzer import analyze_trends, render_trends_markdown
+from paper_extractor import load_db
 from skills_analyzer import (
-    extract_skills_from_paper, aggregate_skills,
-    generate_learning_roadmap, render_skills_markdown,
+    aggregate_skills,
+    extract_skills_from_paper,
+    generate_learning_roadmap,
+    render_skills_markdown,
 )
+from trend_analyzer import analyze_trends, render_trends_markdown
 
 load_dotenv()
 
@@ -39,7 +50,7 @@ def _make_llm(deep: bool = False) -> ChatGoogleGenerativeAI:
         if "thinking" in GEMINI_MODEL or "preview" in GEMINI_MODEL:
             kwargs["thinking_budget"] = THINKING_BUDGET
         return ChatGoogleGenerativeAI(**kwargs)
-        
+
     return ChatGoogleGenerativeAI(
         model=GEMINI_MODEL_FAST,
         temperature=0.2,
@@ -199,28 +210,30 @@ def generate_report(
     # 精简 JSON，只保留报告需要的字段，节省 token
     slim_papers = []
     for p in papers:
-        slim_papers.append({
-            "title": p.get("title"),
-            "published_date": p.get("published_date"),
-            "sub_domain": p.get("sub_domain"),
-            "problem_statement": p.get("problem_statement"),
-            "method_summary": p.get("method_summary"),
-            "contributions": p.get("contributions"),
-            "limitations": p.get("limitations"),
-            "method_keywords": p.get("method_keywords"),
-            "method_type": (p.get("methodology_matrix") or {}).get("approach_type"),
-            "open_source": (p.get("methodology_matrix") or {}).get("open_source"),
-            "github_url": p.get("github_url") if p.get("github_url_validated") else None,
-            "is_core_domain": p.get("is_core_domain", True),
-            "relevance_score": p.get("relevance_score"),
-            "industrial_readiness_score": p.get("industrial_readiness_score"),
-            "theoretical_depth": p.get("theoretical_depth"),
-            "domain_specificity": p.get(
-                "domain_specificity",
-                p.get("relevance_to_sparse_representation"),
-            ),
-            "url": p.get("url"),
-        })
+        slim_papers.append(
+            {
+                "title": p.get("title"),
+                "published_date": p.get("published_date"),
+                "sub_domain": p.get("sub_domain"),
+                "problem_statement": p.get("problem_statement"),
+                "method_summary": p.get("method_summary"),
+                "contributions": p.get("contributions"),
+                "limitations": p.get("limitations"),
+                "method_keywords": p.get("method_keywords"),
+                "method_type": (p.get("methodology_matrix") or {}).get("approach_type"),
+                "open_source": (p.get("methodology_matrix") or {}).get("open_source"),
+                "github_url": p.get("github_url") if p.get("github_url_validated") else None,
+                "is_core_domain": p.get("is_core_domain", True),
+                "relevance_score": p.get("relevance_score"),
+                "industrial_readiness_score": p.get("industrial_readiness_score"),
+                "theoretical_depth": p.get("theoretical_depth"),
+                "domain_specificity": p.get(
+                    "domain_specificity",
+                    p.get("relevance_to_sparse_representation"),
+                ),
+                "url": p.get("url"),
+            }
+        )
 
     paper_summaries_str = json.dumps(slim_papers, ensure_ascii=False, indent=2)
     today = datetime.now().strftime("%Y-%m-%d")
@@ -252,10 +265,12 @@ def generate_report(
     llm = _make_llm(deep=False)  # fast model — enough for structured report generation
     print(f"[Report] 正在生成报告 ({GEMINI_MODEL_FAST})，请稍候...")
 
-    response = llm.invoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt),
-    ])
+    response = llm.invoke(
+        [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        ]
+    )
     return response.content
 
 
@@ -277,71 +292,126 @@ def _text_blob(value) -> str:
     return str(value).lower()
 
 
-def _fallback_extrapolated_gaps(papers: list[dict], domain: str) -> dict:
-    """
-    Deterministic fallback when LLM gaps JSON is empty/invalid.
-    Keeps wording domain-grounded and avoids generic ML-only framing.
-    """
+def _collect_gap_terms(papers: list[dict]) -> tuple[list[str], list[str], list[str]]:
+    all_keywords: list[str] = []
+    all_subdomains: list[str] = []
+    all_methods: list[str] = []
+    for paper in papers[:5]:
+        method_keywords = paper.get("method_keywords")
+        if isinstance(method_keywords, list):
+            all_keywords.extend(str(kw) for kw in method_keywords if kw)
+
+        sub_domain = str(paper.get("sub_domain", "")).strip()
+        if sub_domain:
+            all_subdomains.append(sub_domain)
+
+        methodology_matrix = paper.get("methodology_matrix")
+        approach = ""
+        if isinstance(methodology_matrix, dict):
+            approach = str(methodology_matrix.get("approach_type", "")).strip()
+        if approach and approach not in {"none (theoretical)", "—"}:
+            all_methods.append(approach)
+
+    return all_keywords, all_subdomains, all_methods
+
+
+def _derive_gap_context(papers: list[dict], domain: str) -> dict:
+    domain_name = str(domain).strip() if domain else ""
+    if not domain_name:
+        domain_name = DOMAIN
     if not papers:
-        return {"extrapolated_gaps": []}
+        return {
+            "domain_name": domain_name,
+            "keyword_str": "existing techniques",
+            "subdomain_str": domain_name,
+            "method_str": "current methods",
+            "paper_titles": [],
+        }
 
-    domain_name = str(domain or DOMAIN).strip() or DOMAIN
-    paper_titles = [str(p.get("title") or "Untitled").strip() for p in papers]
-    top_titles = paper_titles[:3]
+    # Derive real vocabulary from actual papers - never use ML templates.
+    all_keywords, all_subdomains, all_methods = _collect_gap_terms(papers)
 
-    fallback_gaps = [
+    keyword_str = ", ".join(dict.fromkeys(all_keywords[:6])) or "existing techniques"
+    subdomain_str = " and ".join(dict.fromkeys(all_subdomains[:2])) or domain_name
+    method_str = " and ".join(dict.fromkeys(all_methods[:3])) or "current methods"
+    paper_titles = [str(p.get("title") or "Untitled").strip() for p in papers[:3]]
+
+    return {
+        "domain_name": domain_name,
+        "keyword_str": keyword_str,
+        "subdomain_str": subdomain_str,
+        "method_str": method_str,
+        "paper_titles": paper_titles,
+    }
+
+
+def _build_fallback_gap_items(context: dict) -> list[dict]:
+    domain_name = context["domain_name"]
+    keyword_str = context["keyword_str"]
+    subdomain_str = context["subdomain_str"]
+    method_str = context["method_str"]
+    paper_titles = context["paper_titles"]
+    return [
         {
-            "gap_title": f"{domain_name} measurement mismatch",
+            "gap_title": f"Multi-condition validation gap in {domain_name}",
             "description": (
-                f"Across the {domain_name} papers, measurement assumptions and observation "
-                "conditions are not harmonized, which creates unresolved methodological "
-                "tension when comparing findings."
+                f"Studies in {subdomain_str} test performance under isolated lab conditions, "
+                "but real-world deployment combines multiple simultaneous stressors "
+                f"(e.g. humidity, thermal cycling, mechanical stress) not addressed by {keyword_str}. "
+                "No paper evaluates combined-stress scenarios."
             ),
-            "affected_papers": top_titles,
+            "affected_papers": paper_titles,
             "why_unsolved": (
-                f"Current methods optimize local objectives but do not align a shared "
-                f"{domain_name} measurement protocol."
+                "Replicating multi-variable field conditions requires test infrastructure "
+                "that exceeds typical lab-scale experimental setups."
             ),
             "potential_research_direction": (
-                f"Define a standardized {domain_name} protocol for data calibration, "
-                "reporting units, and uncertainty treatment."
+                f"Develop standardized combined-stress test protocols for {domain_name} "
+                "that reflect real deployment environments rather than idealized lab conditions."
             ),
         },
         {
-            "gap_title": f"{domain_name} prior integration gap",
+            "gap_title": f"Long-term durability characterization in {domain_name}",
             "description": (
-                f"Several papers use strong model architectures but weakly encode "
-                f"{domain_name}-specific priors, leaving domain mechanisms under-constrained."
+                f"Current {domain_name} papers report initial performance metrics using {method_str}, "
+                "but systematic long-term aging studies (months to years under cyclic conditions) "
+                "are absent from the literature surveyed."
             ),
-            "affected_papers": top_titles,
+            "affected_papers": paper_titles,
             "why_unsolved": (
-                f"Domain priors are often treated as optional features rather than core "
-                f"constraints in the {domain_name} modeling pipeline."
+                "Long-term studies require sustained experimental resources and fall outside "
+                "typical academic publication timelines."
             ),
             "potential_research_direction": (
-                f"Build hybrid methods that fuse {domain_name} priors with learned "
-                "representations and explicit uncertainty terms."
+                f"Establish accelerated aging protocols for {domain_name} that correlate "
+                "with real-world lifetime, enabling faster durability screening."
             ),
         },
         {
-            "gap_title": f"{domain_name} uncertainty interpretation",
+            "gap_title": f"Cross-study reproducibility in {domain_name}",
             "description": (
-                f"The papers report performance gains, but uncertainty outputs are not "
-                f"consistently tied to {domain_name} decision criteria."
+                f"The papers in {subdomain_str} use different measurement conditions, sample preparation "
+                "procedures, and reporting units, making direct quantitative comparison of results impossible. "
+                "Findings from one study cannot be reliably transferred to another experimental setup."
             ),
-            "affected_papers": top_titles,
+            "affected_papers": paper_titles,
             "why_unsolved": (
-                f"There is no common translation layer from model confidence to actionable "
-                f"{domain_name} interpretation."
+                f"No shared measurement standard or reporting protocol exists that is "
+                f"universally adopted across {domain_name} research groups."
             ),
             "potential_research_direction": (
-                f"Introduce domain-calibrated uncertainty audits and decision thresholds "
-                f"for {domain_name} use cases."
+                f"Propose a community-agreed minimum reporting standard for {domain_name} "
+                "experiments, specifying sample geometry, environmental conditions, and key metrics."
             ),
         },
     ]
 
-    return {"extrapolated_gaps": fallback_gaps}
+
+def _fallback_extrapolated_gaps(papers: list[dict], domain: str) -> dict:
+    if not papers:
+        return {"extrapolated_gaps": []}
+    context = _derive_gap_context(papers, domain)
+    return {"extrapolated_gaps": _build_fallback_gap_items(context)}
 
 
 def generate_extrapolated_gaps(
@@ -354,14 +424,16 @@ def generate_extrapolated_gaps(
     """
     slim_papers = []
     for p in papers:
-        slim_papers.append({
-            "title": p.get("title"),
-            "sub_domain": p.get("sub_domain"),
-            "problem_statement": p.get("problem_statement"),
-            "method_summary": p.get("method_summary"),
-            "contributions": p.get("contributions"),
-            "methodology_matrix": p.get("methodology_matrix"),
-        })
+        slim_papers.append(
+            {
+                "title": p.get("title"),
+                "sub_domain": p.get("sub_domain"),
+                "problem_statement": p.get("problem_statement"),
+                "method_summary": p.get("method_summary"),
+                "contributions": p.get("contributions"),
+                "methodology_matrix": p.get("methodology_matrix"),
+            }
+        )
 
     user_prompt = GAPS_USER_TEMPLATE.format(
         paper_summaries=json.dumps(slim_papers, ensure_ascii=False, indent=2)
@@ -375,10 +447,12 @@ def generate_extrapolated_gaps(
     system_prompt = GAPS_SYSTEM_PROMPT + "\n\n" + domain_rule
 
     try:
-        response = llm.invoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ])
+        response = llm.invoke(
+            [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ]
+        )
         parsed = json.loads(_clean_json_response(response.content))
         raw_gaps = parsed.get("extrapolated_gaps", [])
         if not isinstance(raw_gaps, list):
@@ -402,15 +476,17 @@ def generate_extrapolated_gaps(
                 affected = [str(affected)]
             affected = [str(t).strip() for t in affected if str(t).strip()]
 
-            normalized.append({
-                "gap_title": gap_title,
-                "description": str(gap.get("description", "")).strip(),
-                "affected_papers": affected,
-                "why_unsolved": str(gap.get("why_unsolved", "")).strip(),
-                "potential_research_direction": str(
-                    gap.get("potential_research_direction", "")
-                ).strip(),
-            })
+            normalized.append(
+                {
+                    "gap_title": gap_title,
+                    "description": str(gap.get("description", "")).strip(),
+                    "affected_papers": affected,
+                    "why_unsolved": str(gap.get("why_unsolved", "")).strip(),
+                    "potential_research_direction": str(
+                        gap.get("potential_research_direction", "")
+                    ).strip(),
+                }
+            )
 
         normalized = normalized[:6]
         if normalized:
@@ -434,9 +510,7 @@ def render_extrapolated_gaps_markdown(gap_data: dict) -> str:
         gaps = []
 
     if not gaps:
-        lines.append(
-            "[needs verification] Extrapolated cross-paper gaps were not generated."
-        )
+        lines.append("[needs verification] Extrapolated cross-paper gaps were not generated.")
         return "\n".join(lines)
 
     for g in gaps:
@@ -465,11 +539,11 @@ def inject_section_four(report_text: str, section_text: str) -> str:
     """
     import re
 
-    sec4_pattern = re.compile(r'## 4\..*?(?=\n## |\Z)', re.DOTALL)
+    sec4_pattern = re.compile(r"## 4\..*?(?=\n## |\Z)", re.DOTALL)
     if sec4_pattern.search(report_text):
         return sec4_pattern.sub(section_text, report_text)
 
-    sec5_pattern = re.compile(r'(?=^## 5\.)', re.MULTILINE)
+    sec5_pattern = re.compile(r"(?=^## 5\.)", re.MULTILINE)
     if sec5_pattern.search(report_text):
         return sec5_pattern.sub(section_text + "\n\n", report_text, count=1)
 
@@ -484,31 +558,31 @@ def clean_markdown_tables(text: str) -> str:
     3. 确保分隔行列数与上方表头行的列数一致
     """
     import re
-    sep_pattern = re.compile(
-        r'^(\|[ \t]*:?-{1,}:?[ \t]*)+\|?[ \t]*$'
-    )
+
+    sep_pattern = re.compile(r"^(\|[ \t]*:?-{1,}:?[ \t]*)+\|?[ \t]*$")
     cleaned_lines = []
     for line in text.splitlines():
         # 跳过纯空白且异常长的行（> 200 字符的纯空白）
-        if len(line) > 200 and line.strip() == '':
+        if len(line) > 200 and line.strip() == "":
             continue
         if sep_pattern.match(line.strip()):
             # 从上一行（表头行）推断列数
             col_count = None
             if cleaned_lines:
                 header = cleaned_lines[-1]
-                if '|' in header:
-                    cols = [c for c in header.split('|') if c.strip()]
+                if "|" in header:
+                    cols = [c for c in header.split("|") if c.strip()]
                     col_count = len(cols)
             if col_count is None or col_count < 1:
-                col_count = max(line.count('|') - 1, 1)
-            cleaned_lines.append('| ' + ' | '.join(['---'] * col_count) + ' |')
+                col_count = max(line.count("|") - 1, 1)
+            cleaned_lines.append("| " + " | ".join(["---"] * col_count) + " |")
         else:
             cleaned_lines.append(line)
-    return '\n'.join(cleaned_lines)
+    return "\n".join(cleaned_lines)
 
 
 # ── 智能章节隐藏 ──────────────────────────────────────────────────────────────
+
 
 def should_render_section(content) -> bool:
     """
@@ -535,23 +609,24 @@ def strip_empty_sections(report_text: str) -> str:
     """
     import re
 
-    section_splitter = re.compile(r'(?=^## )', re.MULTILINE)
+    section_splitter = re.compile(r"(?=^## )", re.MULTILINE)
     chunks = section_splitter.split(report_text)
 
     result = []
     for chunk in chunks:
-        if chunk.startswith('## 4.'):
+        if chunk.startswith("## 4."):
             # 提取正文（标题行之后）
-            body_start = chunk.find('\n')
-            body = chunk[body_start:] if body_start != -1 else ''
+            body_start = chunk.find("\n")
+            body = chunk[body_start:] if body_start != -1 else ""
             if not should_render_section(body):
                 continue  # 完全丢弃这个块
         result.append(chunk)
 
-    return ''.join(result)
+    return "".join(result)
 
 
 # ── 阅读顺序增强：注入 arXiv 链接 + BibTeX ──────────────────────────────────
+
 
 def _build_bibtex(paper: dict) -> str:
     """根据论文元数据生成 BibTeX 条目"""
@@ -587,10 +662,7 @@ def enhance_reading_order(report_text: str, papers: list[dict]) -> str:
     from difflib import SequenceMatcher
 
     # 构建标题 → 论文的查找结构（小写）
-    title_to_paper = {
-        p.get("title", "").lower().strip(): p
-        for p in papers if p.get("title")
-    }
+    title_to_paper = {p.get("title", "").lower().strip(): p for p in papers if p.get("title")}
 
     def _find_paper(mention: str) -> dict | None:
         mention_lower = mention.lower().strip()
@@ -607,9 +679,7 @@ def enhance_reading_order(report_text: str, papers: list[dict]) -> str:
         return best if best_ratio >= 0.6 else None
 
     # 找到 Section 5 的范围（直到下一个 ## 标题或文档结尾）
-    sec5_match = re.search(
-        r'(## 5\..*?)(?=\n## |\Z)', report_text, re.DOTALL
-    )
+    sec5_match = re.search(r"(## 5\..*?)(?=\n## |\Z)", report_text, re.DOTALL)
     if not sec5_match:
         return report_text
 
@@ -617,15 +687,14 @@ def enhance_reading_order(report_text: str, papers: list[dict]) -> str:
     sec5_lines = sec5_original.splitlines(keepends=True)
 
     # 识别条目行：以 "N. " 或 "**Title**" 开头的行
-    entry_pattern = re.compile(r'^(\d+\.\s+|\*\*)(.+?)(\*\*)?\s*$')
+    entry_pattern = re.compile(r"^(\d+\.\s+|\*\*)(.+?)(\*\*)?\s*$")
     reading_order_items = [
-        idx for idx, line in enumerate(sec5_lines)
-        if entry_pattern.match(line.strip())
+        idx for idx, line in enumerate(sec5_lines) if entry_pattern.match(line.strip())
     ]
     reading_order_items = reading_order_items[:5]  # enforce cap regardless of LLM output
 
     if reading_order_items:
-        trimmed_sec5_lines = sec5_lines[:reading_order_items[0]]
+        trimmed_sec5_lines = sec5_lines[: reading_order_items[0]]
         for item_pos, start_idx in enumerate(reading_order_items):
             end_idx = (
                 reading_order_items[item_pos + 1]
@@ -633,8 +702,8 @@ def enhance_reading_order(report_text: str, papers: list[dict]) -> str:
                 else len(sec5_lines)
             )
             block = list(sec5_lines[start_idx:end_idx])
-            if block and re.match(r'^\d+\.\s+', block[0].strip()):
-                block[0] = re.sub(r'^\d+\.', f'{item_pos + 1}.', block[0], count=1)
+            if block and re.match(r"^\d+\.\s+", block[0].strip()):
+                block[0] = re.sub(r"^\d+\.", f"{item_pos + 1}.", block[0], count=1)
             trimmed_sec5_lines.extend(block)
         sec5_lines = trimmed_sec5_lines
 
@@ -645,18 +714,18 @@ def enhance_reading_order(report_text: str, papers: list[dict]) -> str:
         stripped = line.strip()
         m = entry_pattern.match(stripped)
         if m:
-            candidate_title = m.group(2).strip().strip('*').strip()
+            candidate_title = m.group(2).strip().strip("*").strip()
             paper = _find_paper(candidate_title)
             if paper and paper.get("url"):
                 url = paper["url"]
                 bibtex = _build_bibtex(paper)
                 enhanced_lines.append(
-                    f'🔗 [Read on arXiv]({url})  \n'
-                    f'<details><summary>📋 BibTeX</summary>\n\n'
-                    f'```bibtex\n{bibtex}\n```\n\n</details>\n\n'
+                    f"🔗 [Read on arXiv]({url})  \n"
+                    f"<details><summary>📋 BibTeX</summary>\n\n"
+                    f"```bibtex\n{bibtex}\n```\n\n</details>\n\n"
                 )
 
-    sec5_enhanced = ''.join(enhanced_lines)
+    sec5_enhanced = "".join(enhanced_lines)
     return report_text.replace(sec5_original, sec5_enhanced)
 
 
@@ -714,7 +783,7 @@ def inject_summary_table(report_text: str, papers: list[dict]) -> str:
     import re
 
     table_section = render_summary_table(papers)
-    sec6_pattern = re.compile(r'## 6\. Summary Table.*?(?=\n## |\Z)', re.DOTALL)
+    sec6_pattern = re.compile(r"## 6\. Summary Table.*?(?=\n## |\Z)", re.DOTALL)
     if sec6_pattern.search(report_text):
         return sec6_pattern.sub(table_section, report_text)
     return report_text.rstrip() + "\n\n" + table_section + "\n"
@@ -731,7 +800,6 @@ def save_report(report_text: str, papers: list[dict] | None = None):
     with open(REPORT_OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(report_text)
     print(f"\n✅ 报告已保存至：{REPORT_OUTPUT_PATH}")
-
 
 
 METHODOLOGY_CONTRAST_PROMPT = """You are given a methodology comparison matrix of research papers.
@@ -788,14 +856,16 @@ def render_methodology_matrix(papers: list[dict], llm=None) -> str:
             f"| {_sanitize_md_cell(open_source_display)} | {_sanitize_md_cell(theory)} "
             f"| {_sanitize_md_cell(baseline)} |"
         )
-        matrix_rows_for_llm.append({
-            "title": title,
-            "approach": approach,
-            "architecture": arch,
-            "supervision": supervision,
-            "modality": modality,
-            "theory": theory,
-        })
+        matrix_rows_for_llm.append(
+            {
+                "title": title,
+                "approach": approach,
+                "architecture": arch,
+                "supervision": supervision,
+                "modality": modality,
+                "theory": theory,
+            }
+        )
 
     lines.append("")
 
@@ -811,10 +881,12 @@ def render_methodology_matrix(papers: list[dict], llm=None) -> str:
         matrix_json = json.dumps(matrix_rows_for_llm, ensure_ascii=False, indent=2)
         try:
             print("[Report] 正在生成方法论对比摘要...")
-            resp = llm.invoke([
-                SystemMessage(content=METHODOLOGY_CONTRAST_PROMPT),
-                HumanMessage(content=f"Methodology matrix:\n{matrix_json}"),
-            ])
+            resp = llm.invoke(
+                [
+                    SystemMessage(content=METHODOLOGY_CONTRAST_PROMPT),
+                    HumanMessage(content=f"Methodology matrix:\n{matrix_json}"),
+                ]
+            )
             contrast = resp.content.strip()
             lines.append(contrast)
             lines.append("")
@@ -860,26 +932,46 @@ def render_single_paper_summary_cards(papers: list[dict]) -> str:
             contribution_lines = "- N/A"
 
         blocks.append(
-            "\n".join([
-                "---",
-                f"### {title}",
-                f"**Authors:** {authors} | **Date:** {published_date} | \U0001F517 [arXiv]({url})",
-                f"**Sub-domain:** {sub_domain}",
-                f"**Problem:** {problem_statement}",
-                f"**Method:** {method_summary}",
-                "**Key Contributions:**",
-                contribution_lines,
-                "---",
-            ])
+            "\n".join(
+                [
+                    "---",
+                    f"### {title}",
+                    f"**Authors:** {authors} | **Date:** {published_date} | \U0001f517 [arXiv]({url})",
+                    f"**Sub-domain:** {sub_domain}",
+                    f"**Problem:** {problem_statement}",
+                    f"**Method:** {method_summary}",
+                    "**Key Contributions:**",
+                    contribution_lines,
+                    "---",
+                ]
+            )
         )
 
     return "\n\n".join(blocks)
 
 
+def _slim_papers_for_report(papers: list[dict]) -> list[dict]:
+    """Extract only the fields needed by report/gaps/matrix agents."""
+    from cached_parallel_agents import _slim_papers_for_report_impl
+
+    return _slim_papers_for_report_impl(papers)
+
+
+def run_cached_parallel_agents(
+    papers: list[dict],
+    domain: str,
+    days: int,
+) -> tuple[str, dict, str | None]:
+    """Run report, gaps, and matrix agents in parallel using shared Context Cache."""
+    from cached_parallel_agents import run_cached_parallel_agents_impl
+
+    return run_cached_parallel_agents_impl(papers, domain, days)
+
+
 if __name__ == "__main__":
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📄 报告生成器启动")
-    print("="*60)
+    print("=" * 60)
 
     _start_time = time.time()
 
@@ -894,8 +986,7 @@ if __name__ == "__main__":
         scored_papers = [score_paper_credibility(p, DOMAIN) for p in papers]
         paper_count = len(papers)
         high_credibility_papers = [
-            p for p in scored_papers
-            if p.get("credibility_score", 0) >= CREDIBILITY_THRESHOLD
+            p for p in scored_papers if p.get("credibility_score", 0) >= CREDIBILITY_THRESHOLD
         ]
         high_credibility_count = len(high_credibility_papers)
         confidence = _confidence_level(high_credibility_count)
@@ -928,7 +1019,9 @@ if __name__ == "__main__":
                 )
                 _llm_fast = _make_llm(deep=False)
                 _llm_deep = _make_llm(deep=True)
-                print(f"[Report] 模型配置 — fast:{GEMINI_MODEL_FAST}  deep:{GEMINI_MODEL}(budget={THINKING_BUDGET})")
+                print(
+                    f"[Report] 模型配置 — fast:{GEMINI_MODEL_FAST}  deep:{GEMINI_MODEL}(budget={THINKING_BUDGET})"
+                )
                 with ThreadPoolExecutor(max_workers=3) as executor:
                     fut_report = executor.submit(generate_report, papers)
                     fut_gaps = executor.submit(generate_extrapolated_gaps, papers, _llm_deep)
@@ -950,7 +1043,9 @@ if __name__ == "__main__":
                 if matrix_section:
                     insert_marker = "## 4."
                     if insert_marker in report:
-                        report = report.replace(insert_marker, matrix_section + "\n\n" + insert_marker)
+                        report = report.replace(
+                            insert_marker, matrix_section + "\n\n" + insert_marker
+                        )
                     else:
                         report += "\n\n" + matrix_section
 
@@ -969,7 +1064,9 @@ if __name__ == "__main__":
         else:
             _llm_fast = _make_llm(deep=False)
             _llm_deep = _make_llm(deep=True)
-            print(f"[Report] 模型配置 — fast:{GEMINI_MODEL_FAST}  deep:{GEMINI_MODEL}(budget={THINKING_BUDGET})")
+            print(
+                f"[Report] 模型配置 — fast:{GEMINI_MODEL_FAST}  deep:{GEMINI_MODEL}(budget={THINKING_BUDGET})"
+            )
 
             # MEDIUM confidence: keep trend/matrix/skills (no roadmap)
             if confidence == "MEDIUM":
@@ -993,7 +1090,9 @@ if __name__ == "__main__":
 
                 insert_marker_4 = "## 4."
                 if insert_marker_4 in report:
-                    report = report.replace(insert_marker_4, matrix_section + "\n\n" + insert_marker_4)
+                    report = report.replace(
+                        insert_marker_4, matrix_section + "\n\n" + insert_marker_4
+                    )
                 else:
                     report += "\n\n" + matrix_section
 
@@ -1002,9 +1101,9 @@ if __name__ == "__main__":
 
                 print("[Report] extracting skills in parallel...")
                 with ThreadPoolExecutor(max_workers=5) as executor:
-                    results = list(executor.map(
-                        lambda p: extract_skills_from_paper(p, _llm_fast), papers
-                    ))
+                    results = list(
+                        executor.map(lambda p: extract_skills_from_paper(p, _llm_fast), papers)
+                    )
                 all_skills = [s for s in results if s is not None]
                 if all_skills:
                     aggregated_skills = aggregate_skills(all_skills)
@@ -1040,7 +1139,9 @@ if __name__ == "__main__":
 
                 insert_marker_4 = "## 4."
                 if insert_marker_4 in report:
-                    report = report.replace(insert_marker_4, matrix_section + "\n\n" + insert_marker_4)
+                    report = report.replace(
+                        insert_marker_4, matrix_section + "\n\n" + insert_marker_4
+                    )
                 else:
                     report += "\n\n" + matrix_section
 
@@ -1049,9 +1150,9 @@ if __name__ == "__main__":
 
                 print("[Report] extracting skills and generating roadmap...")
                 with ThreadPoolExecutor(max_workers=5) as executor:
-                    results = list(executor.map(
-                        lambda p: extract_skills_from_paper(p, _llm_fast), papers
-                    ))
+                    results = list(
+                        executor.map(lambda p: extract_skills_from_paper(p, _llm_fast), papers)
+                    )
                 all_skills = [s for s in results if s is not None]
                 if all_skills:
                     aggregated_skills = aggregate_skills(all_skills)
