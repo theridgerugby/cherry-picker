@@ -8,3 +8,4 @@ chromadb
 pydantic
 python-dotenv
 requests
+paperswithcode-client

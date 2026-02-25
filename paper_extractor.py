@@ -2,8 +2,6 @@
 
 import json
 import re
-import urllib.parse
-import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -13,6 +11,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 
 from config import GEMINI_MODEL, GEMINI_MODEL_FAST, CHROMA_DB_PATH, CHROMA_COLLECTION
+from repo_extractor import extract_repo_candidates_for_paper
 
 load_dotenv()
 
@@ -279,42 +278,6 @@ def prefilter_papers(papers: list[dict], domain: str, llm_fast) -> list[dict]:
     return [p for p in enriched if p is not None]
 
 
-def validate_github_url(url: str, paper_title: str) -> str | None:
-    """
-    Only return a GitHub URL if it passes all checks.
-    Returns None on any failure — never returns an unverified URL.
-    """
-    if not url or "github.com" not in url:
-        return None
-
-    normalized = url.strip().lower()
-
-    # Reject known hallucination patterns.
-    hallucinated_repos = [
-        "vxcontrol/pentagi",
-        "openai/openai",
-        "google/google",
-    ]
-    if any(pattern in normalized for pattern in hallucinated_repos):
-        print(f"[Validator] Rejected hallucinated URL for '{paper_title}': {url}")
-        return None
-
-    try:
-        response = requests.head(
-            url,
-            timeout=5,
-            allow_redirects=True,
-            headers={"User-Agent": "Mozilla/5.0"},
-        )
-        if response.status_code == 200:
-            return response.url if response.url else url
-        print(f"[Validator] URL returned {response.status_code} for '{paper_title}': {url}")
-        return None
-    except Exception as e:
-        print(f"[Validator] URL check failed for '{paper_title}': {e}")
-        return None
-
-
 def _strip_disallowed_url_fields(payload: dict) -> dict:
     """
     Remove URL-like fields the LLM must never generate.
@@ -333,51 +296,6 @@ def _strip_disallowed_url_fields(payload: dict) -> dict:
         sanitized["methodology_matrix"] = mm_sanitized
 
     return sanitized
-
-
-def enrich_open_source_with_paperswithcode(paper_title: str, extracted: dict) -> None:
-    """
-    If open_source is unknown, query PapersWithCode by title and try to enrich
-    with a GitHub URL.
-    """
-    mm = extracted.get("methodology_matrix")
-    if not isinstance(mm, dict):
-        return
-
-    open_source = str(mm.get("open_source", "unknown")).strip().lower()
-    if open_source != "unknown":
-        return
-
-    search_url = (
-        "https://paperswithcode.com/search?q_meta=&q_type=&q="
-        f"{urllib.parse.quote(paper_title)}"
-    )
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        )
-    }
-
-    try:
-        response = requests.get(search_url, headers=headers, timeout=5)
-        if response.status_code != 200 or not response.text:
-            return
-
-        candidates = re.findall(r'https://github\.com/[\w\-.]+/[\w\-.]+', response.text)
-        for raw_url in candidates:
-            verified = validate_github_url(raw_url, paper_title)
-            if verified:
-                mm["open_source"] = "yes"
-                extracted["github_url"] = verified
-                extracted["github_url_validated"] = True
-                return
-
-        mm["open_source"] = "no"
-    except requests.RequestException:
-        # Keep open_source as unknown on timeout/network failures.
-        return
 
 
 def extract_paper_info(
@@ -420,9 +338,38 @@ def extract_paper_info(
             if approach not in VALID_APPROACHES:
                 mm["approach_type"] = "hybrid"
 
+        # Deterministic repository extraction pipeline:
+        # PWC(arXiv id) -> arXiv metadata -> PDF/Tex -> normalize/validate -> score/rank.
+        repo_result = extract_repo_candidates_for_paper(paper, top_k=3)
+        top_candidates = repo_result.get("top_candidates", []) or []
+        all_candidates = repo_result.get("all_candidates", []) or []
+
         extracted["github_url"] = None
         extracted["github_url_validated"] = False
-        enrich_open_source_with_paperswithcode(paper["title"], extracted)
+        extracted["paper_id"] = repo_result.get("paper_id") or paper.get("arxiv_id")
+        extracted["repo_candidates"] = all_candidates
+        extracted["repo_top_candidates"] = top_candidates
+        extracted["repo_low_confidence_candidates"] = (
+            repo_result.get("low_confidence_candidates", []) or []
+        )
+
+        best_verified = next((c for c in top_candidates if c.get("verified")), None)
+        if best_verified is None:
+            best_verified = next((c for c in all_candidates if c.get("verified")), None)
+
+        if best_verified:
+            extracted["github_url"] = best_verified.get("repo_url")
+            extracted["github_url_validated"] = True
+            if isinstance(mm, dict):
+                mm["open_source"] = "yes"
+        elif all_candidates:
+            if isinstance(mm, dict):
+                # Evidence exists but link is not verified.
+                mm["open_source"] = "yes"
+        elif isinstance(mm, dict):
+            # No deterministic evidence found.
+            mm["open_source"] = "unknown"
+
         extracted["arxiv_id"] = paper["arxiv_id"]
         extracted["url"] = paper["url"]
         if "is_core_domain" in paper:

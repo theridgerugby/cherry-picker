@@ -41,6 +41,10 @@ def _fetch_from_arxiv(query: str, days: int, max_results: int = 100) -> list[dic
                 "published_date": result.published.strftime("%Y-%m-%d"),
                 "abstract": result.summary.replace("\n", " "),
                 "url": result.entry_id,
+                "pdf_url": getattr(result, "pdf_url", "") or "",
+                "comment": getattr(result, "comment", "") or "",
+                "primary_category": getattr(result, "primary_category", "") or "",
+                "categories": list(getattr(result, "categories", []) or []),
             }
         )
 

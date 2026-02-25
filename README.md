@@ -32,6 +32,27 @@ streamlit run app.py
 ```
 The app will open in your web browser.
 
+## Quality Guardrails
+This project enforces quality gates for duplication, complexity, and maintainability.
+
+Install dev tools:
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
+Run checks locally:
+```bash
+ruff check .
+ruff format --check .
+python scripts/quality_gate.py
+```
+
+Enable pre-commit:
+```bash
+pre-commit install
+pre-commit run --all-files
+```
+
 ## The files in this project
 - `app.py`: This is the main file for the web app.
 - `input_validator.py`: It checks if your search topic is okay.
