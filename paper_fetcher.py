@@ -71,6 +71,75 @@ def _strip_category_filters(query: str) -> str:
     return query.strip()
 
 
+def _split_top_level_and(query: str) -> list[str]:
+    """
+    Split query by top-level AND (outside parentheses and quotes).
+    """
+    parts = []
+    buf = []
+    depth = 0
+    in_quote = False
+    i = 0
+    while i < len(query):
+        ch = query[i]
+        if ch == '"':
+            in_quote = not in_quote
+            buf.append(ch)
+            i += 1
+            continue
+
+        if not in_quote:
+            if ch == "(":
+                depth += 1
+            elif ch == ")" and depth > 0:
+                depth -= 1
+
+            if depth == 0 and query[i : i + 5] == " AND ":
+                part = "".join(buf).strip()
+                if part:
+                    parts.append(part)
+                buf = []
+                i += 5
+                continue
+
+        buf.append(ch)
+        i += 1
+
+    last = "".join(buf).strip()
+    if last:
+        parts.append(last)
+    return parts
+
+
+def _build_recall_fallback_queries(query: str) -> list[str]:
+    """
+    Build progressively broader fallback queries when zero papers are returned.
+    Order: minimally relaxed -> broadest.
+    """
+    candidates = []
+
+    stripped = _strip_category_filters(query)
+    if stripped and stripped != query:
+        candidates.append(stripped)
+
+    parts = _split_top_level_and(stripped or query)
+    non_cat_parts = [p for p in parts if "cat:" not in p.lower()]
+
+    # Keep first two semantic clauses if available.
+    if len(non_cat_parts) >= 2:
+        first_two = " AND ".join(non_cat_parts[:2]).strip()
+        if first_two and first_two not in candidates:
+            candidates.append(first_two)
+
+    # Broadest fallback: keep only the core first clause.
+    if non_cat_parts:
+        core = non_cat_parts[0].strip()
+        if core and core not in candidates:
+            candidates.append(core)
+
+    return candidates
+
+
 def fetch_papers_adaptive(
     arxiv_query: str,
     target_intent: str = "recent",
@@ -97,6 +166,7 @@ def fetch_papers_adaptive(
     days = start_days
     papers = []
     expanded = False
+    fallback_attempted = False
 
     while days <= max_days:
         papers = _fetch_from_arxiv(arxiv_query, days)
@@ -106,20 +176,24 @@ def fetch_papers_adaptive(
             break
 
         # If we've expanded to halfway and still 0 papers,
-        # try stripping category filters once.
-        if len(papers) == 0 and days >= start_days * 2:
-            fallback_query = _strip_category_filters(arxiv_query)
-            if fallback_query != arxiv_query:
-                print("[Fetcher] Zero results with category filter. Trying without categories...")
-                print(f"[Fetcher] Fallback query: {fallback_query}")
+        # run a one-time progressive fallback sequence.
+        if len(papers) == 0 and days >= start_days * 2 and not fallback_attempted:
+            fallback_attempted = True
+            fallback_candidates = _build_recall_fallback_queries(arxiv_query)
+            for idx, fallback_query in enumerate(fallback_candidates, start=1):
+                if fallback_query == arxiv_query:
+                    continue
+                print(f"[Fetcher] Fallback #{idx}: {fallback_query}")
                 fallback_papers = _fetch_from_arxiv(fallback_query, days)
-                print(f"[Fetcher] Fallback -> {len(fallback_papers)} papers")
+                print(f"[Fetcher] Fallback #{idx} -> {len(fallback_papers)} papers")
                 if len(fallback_papers) > 0:
-                    # Use fallback query for all subsequent expansions.
+                    # Use successful fallback query for subsequent expansions.
                     arxiv_query = fallback_query
                     papers = fallback_papers
                     if len(papers) >= min_papers:
                         break
+            if len(papers) >= min_papers:
+                break
 
         days += step
         expanded = True

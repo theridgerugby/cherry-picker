@@ -5,6 +5,8 @@ import re
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from config import ARXIV_CATEGORY_MAP
+
 
 # Query generation is a simple, high-frequency task — use a lightweight model
 # regardless of what the main pipeline is configured to use.
@@ -81,7 +83,7 @@ Output: (abs:"drug discovery" OR abs:"molecular property")
 
 Input: "sparse representation"
 Output: (ti:"sparse representation" OR ti:"sparse coding"
-  OR ti:"dictionary learning") AND (cat:cs.LG OR eess.SP OR stat.ML)
+  OR ti:"dictionary learning") AND (cat:cs.LG OR cat:eess.SP OR cat:stat.ML)
 
 Input: "climate model inference"
 Output: (abs:"climate model" OR ti:"weather prediction" OR ti:forecasting)
@@ -93,6 +95,65 @@ Output: (ti:"quantum error" OR ti:"quantum fault" OR abs:"qubit")
 
 Output ONLY the raw query string. No JSON, no explanation, no quotes around
 the entire string. Just the query."""
+
+
+_KNOWN_CATEGORIES = sorted(
+    {
+        *ARXIV_CATEGORY_MAP.keys(),
+        # Keep a few common variants that may appear in LLM output.
+        "q-bio",
+        "physics.geo-ph",
+    },
+    key=len,
+    reverse=True,
+)
+
+
+def _normalize_category_syntax(query: str) -> str:
+    """
+    Ensure category codes are consistently prefixed with `cat:`.
+    """
+    normalized = query
+    for code in _KNOWN_CATEGORIES:
+        # Replace standalone category code not already prefixed by cat:
+        # Example: "... OR stat.ML)" -> "... OR cat:stat.ML)"
+        pattern = re.compile(rf'(?<!cat:)(?<![\w.-]){re.escape(code)}(?![\w.-])', re.IGNORECASE)
+        normalized = pattern.sub(f"cat:{code}", normalized)
+    return normalized
+
+
+def _trim_query_safely(query: str, limit: int = 300) -> str:
+    """
+    Trim long query without cutting in the middle of a token if possible.
+    """
+    if len(query) <= limit:
+        return query
+    cut = query.rfind(" AND ", 0, limit)
+    if cut > 0:
+        return query[:cut].strip()
+    return query[:limit].strip()
+
+
+def _rule_based_query_override(raw_input: str) -> str | None:
+    """
+    Deterministic overrides for topics where narrow phrasing often causes zero recall.
+    """
+    topic = (raw_input or "").strip().lower()
+    anti_ice_markers = [
+        "anti-ice",
+        "anti ice",
+        "anti-icing",
+        "anti icing",
+        "icephobic",
+        "ice adhesion",
+    ]
+    if any(marker in topic for marker in anti_ice_markers):
+        return (
+            '(ti:"anti-ice" OR ti:icephobic OR ti:"ice adhesion" '
+            'OR abs:"superhydrophobic" OR abs:"anti-icing") '
+            'AND (cat:cond-mat.mtrl-sci OR cat:physics.app-ph OR cat:cond-mat.soft)'
+        )
+    return None
 
 
 def _make_display_name(raw_input: str) -> str:
@@ -127,22 +188,30 @@ def generate_arxiv_query(
         f"Pre-extracted keywords: {', '.join(keywords)}"
     )
 
-    try:
-        response = _query_llm.invoke([
-            SystemMessage(content=QUERY_SYSTEM_PROMPT),
-            HumanMessage(content=user_msg),
-        ])
-        arxiv_query = response.content.strip()
-    except Exception as e:
-        # Fallback: build a minimal query from keywords
-        print(f"[QueryGen] LLM call failed, using keyword fallback: {e}")
-        kw_parts = " OR ".join(f"ti:{kw}" for kw in keywords[:4])
-        arxiv_query = kw_parts or f"ti:{raw_input}"
+    override_query = _rule_based_query_override(raw_input)
+    if override_query:
+        arxiv_query = override_query
+        print("[QueryGen] Using rule-based query override.")
+    else:
+        try:
+            response = _query_llm.invoke([
+                SystemMessage(content=QUERY_SYSTEM_PROMPT),
+                HumanMessage(content=user_msg),
+            ])
+            arxiv_query = response.content.strip()
+        except Exception as e:
+            # Fallback: build a minimal query from keywords
+            print(f"[QueryGen] LLM call failed, using keyword fallback: {e}")
+            kw_parts = " OR ".join(f"ti:{kw}" for kw in keywords[:4])
+            arxiv_query = kw_parts or f"ti:{raw_input}"
+
+    # Normalize category syntax to avoid malformed category clauses.
+    arxiv_query = _normalize_category_syntax(arxiv_query)
 
     # Hard cap at 300 characters as per the prompt rules
     if len(arxiv_query) > 300:
-        arxiv_query = arxiv_query[:300]
-        print("[QueryGen] Query truncated to 300 characters.")
+        arxiv_query = _trim_query_safely(arxiv_query, limit=300)
+        print("[QueryGen] Query trimmed to <= 300 characters.")
 
     display_name = _make_display_name(raw_input)
 
