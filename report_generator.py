@@ -25,12 +25,6 @@ from config import (
 )
 from credibility_scorer import score_paper_credibility
 from paper_extractor import load_db
-from skills_analyzer import (
-    aggregate_skills,
-    extract_skills_from_paper,
-    generate_learning_roadmap,
-    render_skills_markdown,
-)
 from trend_analyzer import analyze_trends, render_trends_markdown
 
 load_dotenv()
@@ -91,18 +85,30 @@ Report structure (follow exactly, do not add or remove sections):
 
 ## 5. Recommended Reading Order
 [Recommend EXACTLY 3 to 5 papers maximum.
- No more than 5 under any circumstances.
- Selection criteria:
- 1. Start with the most accessible paper (lowest theoretical_depth score)
- 2. Progress to the most impactful (highest domain_specificity score)
- 3. End with the most technically advanced
- Never recommend papers with is_core_domain=false from the prefilter step.
- Give one sentence of justification per paper, citing its unique contribution.]
+ For each paper include:
+ - Paper number and title in bold
+ - First author and institution (format: "Author et al., Institution")
+ - One sentence of justification citing its unique contribution
+ Never recommend papers with is_core_domain=false.]
 
 ## 6. Summary Table
 [End with a markdown table with columns:
- | Title (short) | Sub-domain | Method Type | Industrial Readiness | Theoretical Depth | Domain Specificity | Key Contribution |
+ | Title (short) | First Author | Sub-domain | Method Type | Industrial Readiness | Theoretical Depth | Domain Specificity | Credibility | Key Contribution |
  Fill only from the data provided.]
+
+After the Summary Table, output this exact block verbatim (do not paraphrase):
+
+---
+**Scoring Legend** (all scores are on a 1–5 scale unless noted):
+- **Industrial Readiness**: 1 = purely theoretical · 3 = tested on real
+  materials or real-world data · 5 = pilot-scale / production validated
+- **Theoretical Depth**: 1 = engineering recipe with no derivation · 3 = derives
+  key equations · 5 = rigorous proofs with generalization bounds
+- **Domain Specificity**: 1 = domain is incidental context · 3 = methods
+  designed for domain problems · 5 = primary contribution advances the domain
+- **Credibility** (0–100): venue 30 · institution 20 · category match 15 ·
+  recency 20 · abstract richness 15
+---
 
 IMPORTANT: Do NOT generate a Section 3 — it will be added separately."""
 
@@ -736,39 +742,70 @@ def _sanitize_md_cell(value) -> str:
     return text or "—"
 
 
+def _build_author_cell(paper: dict) -> str:
+    import re
+
+    authors = paper.get("authors") or []
+    if not authors:
+        return "—"
+
+    first_author = str(authors[0]).strip()
+    affiliations = str(paper.get("affiliations") or "").strip()
+    if not affiliations:
+        return first_author or "—"
+
+    institution = re.split(r"[,;]", affiliations)[0].strip()[:40]
+    return f"{first_author} ({institution})" if institution else first_author
+
+
+def _build_credibility_cell(paper: dict) -> str:
+    credibility = paper.get("credibility_score")
+    if credibility is None:
+        return "—"
+    venue = paper.get("venue_detected")
+    if venue:
+        return f"{credibility}/100 ({venue})"
+    return f"{credibility}/100"
+
+
+def _first_contribution(paper: dict) -> str:
+    contributions = paper.get("contributions")
+    if isinstance(contributions, list) and contributions:
+        return contributions[0]
+    return "—"
+
+
 def render_summary_table(papers: list[dict]) -> str:
     """Render Section 6 summary table from structured paper data."""
     lines = [
         "## 6. Summary Table",
         "",
-        "| Title (short) | Sub-domain | Method Type | Industrial Readiness | Theoretical Depth | Domain Specificity | Key Contribution |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| Title (short) | First Author | Sub-domain | Method Type | Industrial Readiness | Theoretical Depth | Domain Specificity | Credibility | Key Contribution |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
 
     for p in papers:
         title = p.get("title") or "Untitled"
         title_short = title if len(title) <= 60 else f"{title[:57]}..."
         mm = p.get("methodology_matrix") or {}
-
         sub_domain = p.get("sub_domain") or "—"
         method_type = mm.get("approach_type") or "—"
         industrial = p.get("industrial_readiness_score")
         theory = p.get("theoretical_depth")
-        specificity = p.get(
-            "domain_specificity",
-            p.get("relevance_to_sparse_representation"),
-        )
-
-        contributions = p.get("contributions")
-        if isinstance(contributions, list) and contributions:
-            key_contribution = contributions[0]
-        else:
-            key_contribution = "—"
+        specificity = p.get("domain_specificity", p.get("relevance_to_sparse_representation"))
+        industrial = industrial if industrial not in (None, "") else "—"
+        theory = theory if theory not in (None, "") else "—"
+        specificity = specificity if specificity not in (None, "") else "—"
+        author_cell = _build_author_cell(p)
+        cred_cell = _build_credibility_cell(p)
+        key_contribution = _first_contribution(p)
 
         lines.append(
-            f"| {_sanitize_md_cell(title_short)} | {_sanitize_md_cell(sub_domain)} "
+            f"| {_sanitize_md_cell(title_short)} | {_sanitize_md_cell(author_cell)} "
+            f"| {_sanitize_md_cell(sub_domain)} "
             f"| {_sanitize_md_cell(method_type)} | {_sanitize_md_cell(industrial)} "
             f"| {_sanitize_md_cell(theory)} | {_sanitize_md_cell(specificity)} "
+            f"| {_sanitize_md_cell(cred_cell)} "
             f"| {_sanitize_md_cell(key_contribution)} |"
         )
 
@@ -1099,24 +1136,6 @@ if __name__ == "__main__":
                 gaps_section = render_extrapolated_gaps_markdown(gaps_data)
                 report = inject_section_four(report, gaps_section)
 
-                print("[Report] extracting skills in parallel...")
-                with ThreadPoolExecutor(max_workers=5) as executor:
-                    results = list(
-                        executor.map(lambda p: extract_skills_from_paper(p, _llm_fast), papers)
-                    )
-                all_skills = [s for s in results if s is not None]
-                if all_skills:
-                    aggregated_skills = aggregate_skills(all_skills)
-                    aggregated_skills["learning_roadmap"] = []
-                    skills_md = render_skills_markdown(aggregated_skills)
-                    unlock_note = (
-                        f"\n> WARNING: **Learning roadmap locked** - requires "
-                        f"{MIN_PAPERS_FOR_ROADMAP}+ papers. "
-                        f"Currently {paper_count} papers analyzed. "
-                        "Extend date range to unlock."
-                    )
-                    report += "\n\n" + skills_md + unlock_note
-
             # HIGH confidence: full report including roadmap
             else:
                 print("[Report] HIGH confidence mode")
@@ -1147,22 +1166,6 @@ if __name__ == "__main__":
 
                 gaps_section = render_extrapolated_gaps_markdown(gaps_data)
                 report = inject_section_four(report, gaps_section)
-
-                print("[Report] extracting skills and generating roadmap...")
-                with ThreadPoolExecutor(max_workers=5) as executor:
-                    results = list(
-                        executor.map(lambda p: extract_skills_from_paper(p, _llm_fast), papers)
-                    )
-                all_skills = [s for s in results if s is not None]
-                if all_skills:
-                    aggregated_skills = aggregate_skills(all_skills)
-                    roadmap = generate_learning_roadmap(
-                        aggregated_skills, _llm_fast, paper_count=paper_count
-                    )
-                    aggregated_skills["learning_roadmap"] = roadmap or []
-                    report += "\n\n" + render_skills_markdown(aggregated_skills)
-                else:
-                    print("[Report] skill extraction failed, skipping skills section")
 
             # Step 3: save
             save_report(report, papers)

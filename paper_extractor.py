@@ -149,23 +149,27 @@ Rules:
   - ML/DL model trained on digital datasets -> "deep_learning"
   - Combination of fundamentally different paradigms -> "hybrid"
 
-- industrial_readiness_score: integer 1-5 using the rubric appropriate to the paper type.
+- industrial_readiness_score (int 1-5):
+  Select the rubric based on approach_type:
 
-  For ML / CS papers:
-    1 = Pure theory, no code, no experiments
-    3 = Has experiments but on toy/synthetic datasets, no open-source code
-    5 = Open-source code available, tested on production-scale benchmarks
-    Use 2 or 4 for evidence clearly between these anchors.
+  IF approach_type is "experimental", "simulation", or "hybrid":
+    1 = Purely theoretical/conceptual, no physical samples tested
+    2 = Proof-of-concept on model/ideal materials under controlled lab conditions
+    3 = Tested on real industrial materials (metal alloys, commercial polymers,
+        engineering substrates) with quantitative performance metrics
+    4 = Scalable fabrication route demonstrated + tested under realistic
+        operational conditions (thermal cycling, humidity, UV, mechanical stress)
+    5 = Pilot-scale or field validation + comparison to ASTM/ISO standards
+        + cost or scalability analysis included
+    NOTE: Do NOT penalize materials papers for lacking open-source code.
+    A detailed fabrication protocol is the equivalent reproducibility signal.
 
-  For materials science / physics / chemistry / engineering papers:
-    1 = Purely theoretical model; no synthesis, fabrication, or measurement
-    2 = Proof-of-concept on model/idealized materials (Si wafer, glass, PDMS) in tightly controlled conditions
-    3 = Tested on real industrial materials (metals, polymers, composites) under realistic lab conditions
-    4 = Demonstrated scalable fabrication route with performance validated under realistic operating conditions
-    5 = Pilot-scale or industry validation; comparison against ASTM/ISO standards; cost/scalability analysis present
-    Use 2 or 4 for evidence clearly between anchors.
-    IMPORTANT: Do NOT penalize materials papers for lacking open-source code.
-    The equivalent signal is a detailed, reproducible fabrication/synthesis protocol.
+  IF approach_type is "experimental_ml" or any ML-dominant type:
+    1 = Pure theoretical contribution, no empirical validation
+    2 = Validated on synthetic or toy datasets only
+    3 = Validated on real-world data, no open-source release
+    4 = Open-source code + reproducible benchmark results
+    5 = Production deployment evidence or industry partnership validation
 
 - key_baseline_compared_to must be a specific named baseline (e.g. "ResNet-50",
   "GPT-3", "DINO"), not a category description (e.g. "traditional methods",

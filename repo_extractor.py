@@ -60,6 +60,16 @@ SOURCE_BASE_SCORE = {
     "tex_source": 0.56,
 }
 
+# Confidence thresholds by source quality tier.
+# Higher tier = more trustworthy provenance = lower required confidence.
+_CONFIDENCE_FLOOR_BY_SOURCE = {
+    "pwc": 0.30,
+    "metadata": 0.30,
+    "tex_source": 0.45,
+    "pdf_text": 0.55,
+}
+_CONFIDENCE_FLOOR_DEFAULT = 0.50
+
 
 def _strip_version(arxiv_id: str) -> str:
     if not arxiv_id:
@@ -464,6 +474,27 @@ def score_and_rank(
     return ranked
 
 
+def _source_confidence_floor(sources: list[str]) -> float:
+    """
+    Return the minimum confidence required for a candidate given its sources.
+
+    When a candidate appears in multiple sources, use the lowest floor among
+    them because corroboration increases trust.
+    """
+    if not sources:
+        return _CONFIDENCE_FLOOR_DEFAULT
+
+    floors = []
+    for raw in sources:
+        source = str(raw or "").strip().lower()
+        if source.startswith("paperswithcode"):
+            source = "pwc"
+        elif source.startswith("arxiv_metadata"):
+            source = "metadata"
+        floors.append(_CONFIDENCE_FLOOR_BY_SOURCE.get(source, _CONFIDENCE_FLOOR_DEFAULT))
+    return min(floors)
+
+
 def extract_repo_candidates_for_paper(paper: dict, top_k: int = 3) -> dict:
     """
     End-to-end deterministic extraction pipeline:
@@ -489,16 +520,32 @@ def extract_repo_candidates_for_paper(paper: dict, top_k: int = 3) -> dict:
     keywords = paper.get("method_keywords") or []
     ranked = score_and_rank(normalized, title, paper_keywords=keywords)
 
-    high_conf = [c for c in ranked if c.get("confidence", 0.0) >= 0.60]
-    top_candidates = high_conf[:top_k] if high_conf else ranked[:top_k]
+    accepted = []
+    rejected = []
+    for candidate in ranked:
+        floor = _source_confidence_floor(candidate.get("sources", []))
+        confidence = float(candidate.get("confidence", 0.0) or 0.0)
+        if confidence < floor:
+            print(
+                f"[RepoExtractor] Rejected {candidate.get('repo_url')!r}: "
+                f"confidence={confidence:.3f} < floor={floor:.2f} "
+                f"(sources={candidate.get('sources')})"
+            )
+            rejected.append(candidate)
+            continue
+        accepted.append(candidate)
+
+    high_conf = [c for c in accepted if c.get("confidence", 0.0) >= 0.60]
+    top_candidates = high_conf[:top_k] if high_conf else accepted[:top_k]
     top_urls = {c.get("repo_url") for c in top_candidates}
-    low_confidence = [c for c in ranked if c.get("repo_url") not in top_urls]
+    low_confidence = [c for c in accepted if c.get("repo_url") not in top_urls]
+    low_confidence.extend(rejected)
 
     return {
         "paper_id": paper_id,
         "top_candidates": top_candidates,
         "low_confidence_candidates": low_confidence,
-        "all_candidates": ranked,
+        "all_candidates": accepted,
         "pipeline": {
             "pwc_hits": len(pwc_candidates),
             "raw_candidate_count": len(raw_candidates),

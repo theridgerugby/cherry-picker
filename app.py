@@ -1,11 +1,11 @@
 # app.py â€” arXiv Research Intelligence | Apple-inspired UI
 
 import html
-import inspect
 import os
 import random
 import re
 from urllib.parse import quote as url_quote
+
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -18,7 +18,7 @@ if "GOOGLE_API_KEY" in st.secrets:
 
 st.set_page_config(
     page_title="Cherry Picker \u00b7 Research Intelligence",
-    page_icon="\U0001F352",
+    page_icon="\U0001f352",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -41,21 +41,20 @@ MOVIE_QUOTES = [
     ("There is no spoon.", "The Matrix"),
     ("Elementary, my dear Watson.", "The Adventures of Sherlock Holmes"),
     ("To boldly go where no man has gone before.", "Star Trek"),
-    ("I'll be back.", "The Terminator"),
     ("Roads? Where we're going, we don't need roads.", "Back to the Future"),
     ("We're gonna need a bigger boat.", "Jaws"),
     ("You had me at hello.", "Jerry Maguire"),
     ("Every passing minute is another chance to turn it all around.", "Vanilla Sky"),
     ("A dream is a wish your heart makes.", "Cinderella"),
-    ("Hakuna Matata \u2014 it means no worries.", "The Lion King"),
     ("Do, or do not. There is no try.", "Yoda \u2014 The Empire Strikes Back"),
-    ("Cooked, or being cooked, that's a good question.", "JZ"),
-    ("We cannot walk alone. And as we walk, we must make the pledge that we shall always march ahead. We cannot turn back.", "Dr. Martin Luther King Jr."),
+    ("Cooked, or being cooked, that's a good question.", "Joshua Zhang"),
+    ("We cannot walk alone.", "Dr. Martin Luther King Jr."),
 ]
 
 # â”€â”€ UI styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-st.markdown("""
+st.markdown(
+    """
 <style>
 :root {
     --color-primary: #2563EB;
@@ -677,9 +676,12 @@ a {
     }
 }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-st.markdown("""
+st.markdown(
+    """
 <div class="top-navbar">
   <div class="nav-brand">&#x1F352; Cherry Picker</div>
   <div class="nav-actions">
@@ -687,13 +689,15 @@ st.markdown("""
     <a class="nav-link" href="https://github.com/theridgerugby/cherry-picker" target="_blank" rel="noopener noreferrer">GitHub</a>
   </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # â”€â”€ Intent mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _INTENT_MAP = {
     "Latest (past 2 weeks)": "latest",
-    "Recent (past month)":   "recent",
+    "Recent (past month)": "recent",
     "Landscape (past 3 months)": "landscape",
 }
 
@@ -719,58 +723,10 @@ def _sanitize_table_cell(value: object) -> str:
     return text or "-"
 
 
-def _build_summary_table_markdown(papers: list[dict]) -> str:
-    lines = [
-        "## 6. Summary Table",
-        "",
-        "| Title (short) | Sub-domain | Method Type | Industrial Readiness | Theoretical Depth | Domain Specificity | Key Contribution |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
-    ]
-
-    if not papers:
-        lines.append(
-            "| No papers available | - | - | - | - | - | Report generated without extracted paper rows. |"
-        )
-        return "\n".join(lines)
-
-    for paper in papers:
-        title = paper.get("title") or "Untitled"
-        title_short = title if len(title) <= 60 else f"{title[:57]}..."
-        matrix = paper.get("methodology_matrix") or {}
-
-        sub_domain = paper.get("sub_domain") or "-"
-        method_type = matrix.get("approach_type") or paper.get("method_type") or "-"
-        industrial = paper.get("industrial_readiness_score")
-        if industrial in (None, ""):
-            industrial = "-"
-        theory = paper.get("theoretical_depth")
-        if theory in (None, ""):
-            theory = "-"
-        specificity = paper.get(
-            "domain_specificity",
-            paper.get("relevance_to_sparse_representation"),
-        )
-        if specificity in (None, ""):
-            specificity = "-"
-
-        contributions = paper.get("contributions")
-        if isinstance(contributions, list) and contributions:
-            key_contribution = contributions[0]
-        else:
-            key_contribution = paper.get("key_contribution") or "-"
-
-        lines.append(
-            f"| {_sanitize_table_cell(title_short)} | {_sanitize_table_cell(sub_domain)} "
-            f"| {_sanitize_table_cell(method_type)} | {_sanitize_table_cell(industrial)} "
-            f"| {_sanitize_table_cell(theory)} | {_sanitize_table_cell(specificity)} "
-            f"| {_sanitize_table_cell(key_contribution)} |"
-        )
-
-    return "\n".join(lines)
-
-
 def _summary_section_has_data_rows(summary_section_text: str) -> bool:
-    table_lines = [line.strip() for line in summary_section_text.splitlines() if line.strip().startswith("|")]
+    table_lines = [
+        line.strip() for line in summary_section_text.splitlines() if line.strip().startswith("|")
+    ]
     if len(table_lines) <= 2:
         return False
 
@@ -782,9 +738,11 @@ def _summary_section_has_data_rows(summary_section_text: str) -> bool:
 
 
 def _ensure_summary_table_section(report_text: str, papers: list[dict]) -> str:
+    from report_generator import render_summary_table
+
     section_pattern = re.compile(r"## 6\. Summary Table.*?(?=\n## |\Z)", re.DOTALL)
     match = section_pattern.search(report_text)
-    fallback_section = _build_summary_table_markdown(papers)
+    fallback_section = render_summary_table(papers)
 
     if match:
         if _summary_section_has_data_rows(match.group(0)):
@@ -808,18 +766,23 @@ def _sync_report_heading_days(report_text: str, days_used: int | None) -> str:
 
     return heading_pattern.sub(_replace_heading, report_text, count=1)
 
+
 # â”€â”€ Layout: centered symmetric container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
 # Hero
-st.markdown("""
+st.markdown(
+    """
 <div class="hero-title">Cherry Picker</div>
 <div class="hero-sub">hope other lazy researchers would like this too</div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # Feature chips (3-column)
-st.markdown("""
+st.markdown(
+    """
 <div class="feature-row">
   <div class="feature-chip">
     <span class="icon">Why us 1</span>
@@ -837,10 +800,14 @@ st.markdown("""
     <span class="desc">Objective synthesis providing guidance rather than biased opinions</span>
   </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # Example topic chips (single row)
-st.markdown('<div class="section-label explore-label">EXPLORE AN EXAMPLE</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="section-label explore-label">EXPLORE AN EXAMPLE</div>', unsafe_allow_html=True
+)
 chip_cols = st.columns(len(_EXAMPLE_TOPICS))
 for i, example in enumerate(_EXAMPLE_TOPICS):
     with chip_cols[i]:
@@ -883,17 +850,16 @@ analyze_clicked = st.button(
 )
 
 if analyze_clicked and topic.strip():
-
-    from config import MIN_PAPERS_FOR_COMPARISON
-    from input_validator import validate_user_input, format_rejection_for_ui
-    from query_generator import generate_arxiv_query
-    from paper_fetcher import fetch_papers_adaptive
-    from paper_extractor import extract_paper_info, store_papers_to_db
     from credibility_scorer import score_paper_credibility
+    from input_validator import format_rejection_for_ui, validate_user_input
+    from paper_extractor import extract_paper_info, store_papers_to_db
+    from paper_fetcher import fetch_papers_adaptive
+    from query_generator import generate_arxiv_query
     from report_generator import (
-        _make_llm, generate_report, generate_extrapolated_gaps,
-        render_extrapolated_gaps_markdown, inject_section_four,
-        render_methodology_matrix, save_report,
+        _make_llm,
+        inject_section_four,
+        render_extrapolated_gaps_markdown,
+        save_report,
     )
 
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
@@ -908,14 +874,14 @@ if analyze_clicked and topic.strip():
         loading_hint.empty()
         st.error(format_rejection_for_ui(validation))
         if validation.get("suggestion"):
-            st.info(f"\U0001F4A1 **Try:** {validation['suggestion']}")
+            st.info(f"\U0001f4a1 **Try:** {validation['suggestion']}")
         st.stop()
 
     # Query generation
     keywords = validation.get("extractable_keywords", [])
     query_result = generate_arxiv_query(topic, keywords, llm_fast)
     display_name = query_result["display_name"]
-    arxiv_query  = query_result["arxiv_query"]
+    arxiv_query = query_result["arxiv_query"]
     try:
         # Keep agent tooling aligned with the active Streamlit topic when imported.
         from agent import set_current_topic
@@ -929,12 +895,15 @@ if analyze_clicked and topic.strip():
 
     # Random movie quote while loading
     movie_quote, source = random.choice(MOVIE_QUOTES)
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="quote-box">
         <div class="quote-text">"{movie_quote}"</div>
         <div class="quote-source">\u2014 {source}</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     try:
         status_box = st.empty()
@@ -943,7 +912,7 @@ if analyze_clicked and topic.strip():
         st.write("Fetching papers from arXiv...")
         fetch_result = fetch_papers_adaptive(arxiv_query, intent)
         papers = fetch_result["papers"]
-        count  = fetch_result["paper_count"]
+        count = fetch_result["paper_count"]
         st.write(f"Found **{count}** papers (window: {fetch_result['days_used']}d)")
         if fetch_result.get("query_used") and fetch_result["query_used"] != arxiv_query:
             st.caption(
@@ -957,17 +926,52 @@ if analyze_clicked and topic.strip():
         if not papers:
             status_box.error("No papers found")
             st.stop()
-            
+
         # --- Enforce a limit of 30 diverse papers ---
         max_limit = 30
         if len(papers) > max_limit:
             st.write(f"Filtering to {max_limit} most diverse papers (from {len(papers)})...")
-            
-            stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "about", "as", "of", "is", "are", "was", "were", "be", "been", "that", "which", "this", "these", "those", "from", "can", "has", "have", "had", "not"}
+
+            stop_words = {
+                "the",
+                "a",
+                "an",
+                "and",
+                "or",
+                "but",
+                "in",
+                "on",
+                "at",
+                "to",
+                "for",
+                "with",
+                "by",
+                "about",
+                "as",
+                "of",
+                "is",
+                "are",
+                "was",
+                "were",
+                "be",
+                "been",
+                "that",
+                "which",
+                "this",
+                "these",
+                "those",
+                "from",
+                "can",
+                "has",
+                "have",
+                "had",
+                "not",
+            }
+
             def get_tokens(p):
                 text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
-                return set(re.findall(r'\b[a-z]{3,}\b', text)) - stop_words
-            
+                return set(re.findall(r"\b[a-z]{3,}\b", text)) - stop_words
+
             ptokens = [get_tokens(p) for p in papers]
             selected_idxs = [0]
             while len(selected_idxs) < max_limit:
@@ -986,9 +990,10 @@ if analyze_clicked and topic.strip():
                     if min_dist_to_sel > max_min_dist:
                         max_min_dist = min_dist_to_sel
                         best_i = i
-                if best_i == -1: break
+                if best_i == -1:
+                    break
                 selected_idxs.append(best_i)
-            
+
             papers = [papers[i] for i in selected_idxs]
         # --------------------------------------------
 
@@ -1014,14 +1019,10 @@ if analyze_clicked and topic.strip():
         render_extract_progress(0, len(papers))
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
         with ThreadPoolExecutor(max_workers=10) as ex:
-            futures = {
-                ex.submit(extract_paper_info, p, llm_fast, display_name): p
-                for p in papers
-            }
-            done = 0
-            for future in as_completed(futures):
-                done += 1
+            futures = {ex.submit(extract_paper_info, p, llm_fast, display_name): p for p in papers}
+            for done, future in enumerate(as_completed(futures), start=1):
                 try:
                     r = future.result()
                     if r is not None:
@@ -1042,9 +1043,13 @@ if analyze_clicked and topic.strip():
 
         st.write("Scoring credibility...")
         scored = [score_paper_credibility(p, display_name) for p in extracted]
-        avg_credibility = round(
-            sum(p.get("credibility_score", 0) for p in scored) / len(scored)
-        ) if scored else 0
+        avg_credibility = (
+            round(sum(p.get("credibility_score", 0) for p in scored) / len(scored)) if scored else 0
+        )
+        for orig, sc in zip(extracted, scored, strict=False):
+            orig["credibility_score"] = sc.get("credibility_score", 0)
+            orig["credibility_breakdown"] = sc.get("credibility_breakdown", {})
+            orig["venue_detected"] = sc.get("venue_detected")
 
         st.write("Generating report...")
         from config import DAYS_BACK  # noqa: PLC0415
@@ -1066,19 +1071,21 @@ if analyze_clicked and topic.strip():
             )
 
         gaps_md = render_extrapolated_gaps_markdown(gaps_data)
-        report  = inject_section_four(report, gaps_md)
+        report = inject_section_four(report, gaps_md)
         save_report(report, extracted)
         st.write("Report generated.")
         status_box.success("Analysis complete!")
 
         # Store results
-        st.session_state["report"]        = report
-        st.session_state["papers"]        = extracted
-        st.session_state["avg_cred"]      = avg_credibility
-        st.session_state["days_used"]     = fetch_result["days_used"]
-        st.session_state["last_query"]    = {
-            "topic": topic, "intent": intent,
-            "display_name": display_name, "arxiv_query": arxiv_query,
+        st.session_state["report"] = report
+        st.session_state["papers"] = extracted
+        st.session_state["avg_cred"] = avg_credibility
+        st.session_state["days_used"] = fetch_result["days_used"]
+        st.session_state["last_query"] = {
+            "topic": topic,
+            "intent": intent,
+            "display_name": display_name,
+            "arxiv_query": arxiv_query,
         }
 
     except Exception as e:
@@ -1089,12 +1096,11 @@ if analyze_clicked and topic.strip():
 # â”€â”€ Report display â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 if "report" in st.session_state and st.session_state["report"]:
-
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     q = st.session_state.get("last_query", {})
     papers = st.session_state.get("papers", [])
-    domains = len(set(p.get("sub_domain", "") for p in papers if p.get("sub_domain")))
+    domains = len({p.get("sub_domain", "") for p in papers if p.get("sub_domain")})
 
     report_title = q.get("display_name", "Research Report")
     file_stem = q.get("display_name", "report").replace(" ", "_")
@@ -1112,7 +1118,8 @@ if "report" in st.session_state and st.session_state["report"]:
     )
     encoded_report = url_quote(report_text, safe="")
 
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="report-subheader">
       <div class="report-subheader-title">{safe_title}</div>
       <div class="report-subheader-actions">
@@ -1120,21 +1127,24 @@ if "report" in st.session_state and st.session_state["report"]:
         <a class="report-download-link" href="data:text/plain;charset=utf-8,{encoded_report}" download="{safe_file_stem}.txt">&#11015; .txt</a>
       </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Stats row (4-column symmetric)
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="stats-row" style="max-width:1100px; margin:24px auto;">
       <div class="stat-card">
         <div class="stat-num">{len(papers)}</div>
         <div class="stat-label">Papers analyzed</div>
       </div>
       <div class="stat-card">
-        <div class="stat-num">{st.session_state.get('days_used', '-')}</div>
+        <div class="stat-num">{st.session_state.get("days_used", "-")}</div>
         <div class="stat-label">Days searched</div>
       </div>
       <div class="stat-card">
-        <div class="stat-num">{st.session_state.get('avg_cred', '-')}</div>
+        <div class="stat-num">{st.session_state.get("avg_cred", "-")}</div>
         <div class="stat-label">Avg credibility</div>
       </div>
       <div class="stat-card">
@@ -1142,23 +1152,28 @@ if "report" in st.session_state and st.session_state["report"]:
         <div class="stat-label">Sub-domains</div>
       </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     st.markdown('<div class="main-container report-main-container">', unsafe_allow_html=True)
     st.markdown('<div class="report-wrapper">', unsafe_allow_html=True)
     st.markdown(report_text)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown(_FOOTER_HTML, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 elif not analyze_clicked:
-    st.markdown("""
+    st.markdown(
+        """
     <div class="empty-state">
         Enter a topic above and click <strong>Analyze</strong> to generate your report
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
     st.markdown(_FOOTER_HTML, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 else:
     st.markdown(_FOOTER_HTML, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)

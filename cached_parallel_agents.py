@@ -19,6 +19,27 @@ from report_generator import (
     render_methodology_matrix,
 )
 
+_SLIM_COPY_FIELDS = (
+    "title",
+    "published_date",
+    "sub_domain",
+    "problem_statement",
+    "method_summary",
+    "contributions",
+    "limitations",
+    "authors",
+    "affiliations",
+    "method_keywords",
+    "methodology_matrix",
+    "is_core_domain",
+    "industrial_readiness_score",
+    "theoretical_depth",
+    "domain_specificity",
+    "credibility_score",
+    "url",
+)
+_MATRIX_USER_MSG = "Build the methodology comparison matrix from the paper data in context."
+
 
 def _normalize_days(days: int | None) -> int:
     try:
@@ -37,30 +58,20 @@ def _slim_papers_for_report_impl(papers: list[dict]) -> list[dict]:
     """Extract only the fields needed by report/gaps/matrix agents."""
     slim: list[dict] = []
     for paper in papers:
+        slim_paper = {field: paper.get(field) for field in _SLIM_COPY_FIELDS}
         methodology = paper.get("methodology_matrix") or {}
-        slim.append(
-            {
-                "title": paper.get("title"),
-                "published_date": paper.get("published_date"),
-                "sub_domain": paper.get("sub_domain"),
-                "problem_statement": paper.get("problem_statement"),
-                "method_summary": paper.get("method_summary"),
-                "contributions": paper.get("contributions"),
-                "limitations": paper.get("limitations"),
-                "method_keywords": paper.get("method_keywords"),
-                "methodology_matrix": methodology,
-                "method_type": methodology.get("approach_type"),
-                "open_source": methodology.get("open_source"),
-                "github_url": paper.get("github_url")
-                if paper.get("github_url_validated")
-                else None,
-                "is_core_domain": paper.get("is_core_domain", True),
-                "industrial_readiness_score": paper.get("industrial_readiness_score"),
-                "theoretical_depth": paper.get("theoretical_depth"),
-                "domain_specificity": paper.get("domain_specificity"),
-                "url": paper.get("url"),
-            }
+        slim_paper["methodology_matrix"] = methodology
+        slim_paper["authors"] = paper.get("authors") or []
+        slim_paper["affiliations"] = paper.get("affiliations") or ""
+        slim_paper["is_core_domain"] = paper.get("is_core_domain", True)
+        slim_paper["method_type"] = methodology.get("approach_type")
+        slim_paper["open_source"] = methodology.get("open_source")
+        slim_paper["credibility_breakdown"] = paper.get("credibility_breakdown", {})
+        slim_paper["venue_detected"] = paper.get("venue_detected")
+        slim_paper["github_url"] = (
+            paper.get("github_url") if paper.get("github_url_validated") else None
         )
+        slim.append(slim_paper)
     return slim
 
 
@@ -137,9 +148,7 @@ def _run_matrix_agent(papers: list[dict], cache) -> str | None:
     if cache is not None:
         try:
             model = make_model_from_cache(cache, get_matrix_prompt())
-            response = model.generate_content(
-                "Build the methodology comparison matrix from the paper data in context."
-            )
+            response = model.generate_content(_MATRIX_USER_MSG)
             text = str(getattr(response, "text", "") or "").strip()
             if _is_valid_matrix_section(text):
                 return text

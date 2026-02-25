@@ -1,20 +1,21 @@
 # Cherry Picker
 
-Cherry Picker is a web tool for research. It finds papers on arXiv and uses AI to summarize them.
+Cherry Picker is an AI-powered Streamlit web application designed to help researchers seamlessly find, summarize, and analyze the newest academic papers from arXiv. 
+
+**Note: This tool is only designed to help you find papers you are interested in; you still have to read the papers yourself.**
 
 ## Features
-- It finds the newest papers on arXiv.
-- It makes your search topic better for Finding papers.
-- It reads the papers and gets the main info.
-- It shows what topics are new and popular.
-- It gives papers a score to show if they are good.
-- It lists the skills and tools mentioned in the papers.
-- It writes a simple report for you.
+- **Smart arXiv Search**: Finds the most recent and relevant papers based on your search topic.
+- **AI Summaries**: Uses Google Gemini to read the text of the papers and extract the main contributions, methodology, and key findings.
+- **Trend & Skill Analysis**: Identifies popular trends in your research domain and generates a learning roadmap of technical skills mentioned in the papers.
+- **Quality Scoring**: Gives papers a credibility score so you can focus on the most impactful research.
+- **Markdown Reports**: Automatically writes a clean, structured summary report of all findings.
+- **Vector Search**: Saves extracted paper data to a local ChromaDB database so you can query insights.
 
-## How to install
-You need Python 3.8 or newer.
+## How to Install
+You will need Python 3.8 or newer.
 
-1. Download the code to your computer.
+1. Download or clone the code to your computer.
 2. Open your terminal in the code folder.
 3. Install the needed parts:
    ```bash
@@ -25,55 +26,32 @@ You need Python 3.8 or newer.
    GOOGLE_API_KEY=your_api_key_here
    ```
 
-## How to use
-Run this command to start the app:
+## How to Use
+Run this command to start the web app:
 ```bash
 streamlit run app.py
 ```
-The app will open in your web browser.
+The application interface will open automatically in your web browser. Type in your topic of interest and let the agent gather your research!
 
-## Quality Guardrails
-This project enforces quality gates for duplication, complexity, and maintainability.
-
-Install dev tools:
-```bash
-pip install -r requirements.txt -r requirements-dev.txt
-```
-
-Run checks locally:
-```bash
-ruff check .
-ruff format --check .
-python scripts/quality_gate.py
-```
-
-Enable pre-commit:
-```bash
-pre-commit install
-pre-commit run --all-files
-```
-
-## The files in this project
-- `app.py`: This is the main file for the web app.
-- `input_validator.py`: It checks if your search topic is okay.
-- `query_generator.py`: It creates a good search for arXiv.
-- `paper_fetcher.py`: It gets papers from arXiv.
-- `paper_extractor.py`: It reads the text from the papers.
-- `trend_analyzer.py`: It finds new trends in the research.
-- `credibility_scorer.py`: It checks if the papers are high quality.
-- `skills_analyzer.py`: It finds technical skills in the papers.
-- `report_generator.py`: It creates the final report file.
-- `agent.py`: It uses AI to analyze the papers.
-- `config.py`: It has the settings for the app.
+## Project Files
+- `app.py`: The main file for the Streamlit web interface.
+- `agent.py`: LangChain ReAct agent that orchestrates the overall AI workflow.
+- `paper_fetcher.py` and `query_generator.py`: Connects to arXiv to search and download papers.
+- `paper_extractor.py`: Extracts structured text and insights from paper PDFs.
+- `trend_analyzer.py`: Spots new shifts and directions in the academic landscape.
+- `credibility_scorer.py`: Evaluates and scores paper quality.
+- `skills_analyzer.py`: Discovers technical skills and tools needed to understand the papers.
+- `report_generator.py`: Creates the final markdown report file.
+- `config.py`: Controls the application settings and AI model selections.
 
 ## Using Docker
-You can also use Docker to run the app:
-1. Build the app:
+You can also run the app using Docker:
+1. Build the app image:
    ```bash
    docker build -t cherry-picker .
    ```
-2. Run the app:
+2. Run the container:
    ```bash
-   docker run -p 8501:8501 -e GOOGLE_API_KEY=your_key cherry-picker
+   docker run -p 8501:8501 -e GOOGLE_API_KEY=your_api_key cherry-picker
    ```
-3. Go to `http://localhost:8501` on your computer.
+3. Visit `http://localhost:8501` on your computer.

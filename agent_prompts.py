@@ -12,7 +12,6 @@ from report_generator import (
     METHODOLOGY_CONTRAST_PROMPT,
     REPORT_SYSTEM_PROMPT,
 )
-from skills_analyzer import SKILL_EXTRACTION_SYSTEM_PROMPT
 from trend_analyzer import TREND_SYSTEM_PROMPT
 
 
@@ -35,8 +34,3 @@ def get_matrix_prompt() -> str:
 def get_trend_prompt() -> str:
     """System prompt for the trend analysis agent."""
     return TREND_SYSTEM_PROMPT
-
-
-def get_skill_prompt() -> str:
-    """System prompt for the skill extraction agent."""
-    return SKILL_EXTRACTION_SYSTEM_PROMPT

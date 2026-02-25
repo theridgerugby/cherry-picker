@@ -16,7 +16,6 @@ from paper_extractor import (
     store_papers_to_db,
 )
 from paper_fetcher import fetch_recent_papers
-from skills_analyzer import aggregate_skills, extract_skills_from_paper, generate_learning_roadmap
 from trend_analyzer import analyze_trends
 
 load_dotenv()
@@ -230,48 +229,6 @@ def analyze_industry_trends(dummy: str = "") -> str:
         return f"Trend analysis failed: {e}"
 
 
-@tool
-def analyze_required_skills(dummy: str = "") -> str:
-    """
-    Analyze required skills and generate a learning roadmap from papers in DB.
-    """
-    try:
-        db = load_db()
-        search_query = _current_display_name.strip() or DOMAIN
-        results = db.similarity_search(search_query, k=50)
-        papers = []
-        seen_ids = set()
-        for doc in results:
-            meta = doc.metadata
-            arxiv_id = meta.get("arxiv_id", "")
-            if arxiv_id in seen_ids:
-                continue
-            seen_ids.add(arxiv_id)
-            full = json.loads(meta.get("full_json", "{}"))
-            if full:
-                papers.append(full)
-
-        if not papers:
-            return "Error: vector DB is empty. Extract papers first."
-
-        llm = get_llm()
-        all_skills = []
-        for p in papers:
-            skill = extract_skills_from_paper(p, llm)
-            if skill:
-                all_skills.append(skill)
-
-        if not all_skills:
-            return "Skill extraction failed for all papers."
-
-        aggregated = aggregate_skills(all_skills)
-        roadmap = generate_learning_roadmap(aggregated, llm, search_query, len(papers))
-        aggregated["learning_roadmap"] = roadmap
-        return json.dumps(aggregated, ensure_ascii=False, indent=2)
-    except Exception as e:
-        return f"Skill analysis failed: {e}"
-
-
 def _build_agent_system_prompt(domain: str, days: int, min_papers: int) -> str:
     return f"""You are a research intelligence agent specialized in academic literature analysis.
 Your goal is to fetch, analyze, and prepare a set of recent papers on "{domain}" for report generation.
@@ -283,7 +240,6 @@ Rules:
 - Prioritize papers with higher domain specificity to {domain} (domain_specificity 4-5).
 - After extracting all target papers, call save_all_to_database.
 - After saving, call analyze_industry_trends to generate trend insights.
-- After trend analysis, call analyze_required_skills to generate a skills and learning roadmap.
 - If a tool returns an error, try a different approach and continue.
 - When all steps are complete, reply with a brief summary: how many papers found, how many processed, key themes.
 
@@ -302,7 +258,6 @@ def run_agent():
         save_all_to_database,
         query_database,
         analyze_industry_trends,
-        analyze_required_skills,
     ]
 
     current_domain = _current_display_name.strip() or DOMAIN
