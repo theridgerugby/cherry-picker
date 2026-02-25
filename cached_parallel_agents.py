@@ -78,6 +78,13 @@ def _parse_cached_gaps_response(raw_text: str) -> dict | None:
     return None
 
 
+def _is_valid_matrix_section(text: str) -> bool:
+    normalized = str(text or "").strip()
+    if not normalized:
+        return False
+    return "## 3." in normalized and "|" in normalized
+
+
 def _run_report_agent(
     papers: list[dict],
     cache,
@@ -127,8 +134,9 @@ def _run_matrix_agent(papers: list[dict], cache) -> str | None:
                 "Build the methodology comparison matrix from the paper data in context."
             )
             text = str(getattr(response, "text", "") or "").strip()
-            if text:
+            if _is_valid_matrix_section(text):
                 return text
+            print("[Cache] Matrix output missing Section 3 format, falling back.")
         except Exception as exc:
             print(f"[Cache] Matrix agent failed, falling back: {exc}")
 
