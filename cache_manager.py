@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+from typing import Any
 
 import google.generativeai as genai
 
@@ -17,6 +18,22 @@ import google.generativeai as genai
 # We cache regardless - correctness over cost optimization.
 _CACHE_TTL_MINUTES = 15
 _FAST_MODEL = "gemini-1.5-flash-001"
+
+
+class _CachedModelProxy:
+    """Compatibility proxy when cached model API doesn't accept system_instruction."""
+
+    def __init__(self, model: genai.GenerativeModel, system_instruction: str):
+        self._model = model
+        self._system_instruction = str(system_instruction or "").strip()
+
+    def generate_content(self, content, *args, **kwargs):
+        user_text = content if isinstance(content, str) else str(content)
+        if self._system_instruction:
+            user_text = (
+                f"[System Instruction]\n{self._system_instruction}\n\n[User Request]\n{user_text}"
+            )
+        return self._model.generate_content(user_text, *args, **kwargs)
 
 
 def _get_api_key() -> str:
@@ -74,9 +91,16 @@ def delete_cache(cache: genai.caching.CachedContent | None) -> None:
 def make_model_from_cache(
     cache: genai.caching.CachedContent,
     system_instruction: str,
-) -> genai.GenerativeModel:
+) -> Any:
     """Build a GenerativeModel that reads from an existing cache."""
-    return genai.GenerativeModel.from_cached_content(
-        cached_content=cache,
-        system_instruction=system_instruction,
-    )
+    try:
+        return genai.GenerativeModel.from_cached_content(
+            cached_content=cache,
+            system_instruction=system_instruction,
+        )
+    except TypeError:
+        # Backward compatibility for google-generativeai versions where
+        # from_cached_content() does not expose system_instruction.
+        print("[Cache] SDK compatibility mode: injecting system instruction into user message.")
+        base_model = genai.GenerativeModel.from_cached_content(cached_content=cache)
+        return _CachedModelProxy(base_model, system_instruction)
