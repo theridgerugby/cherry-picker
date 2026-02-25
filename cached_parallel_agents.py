@@ -82,7 +82,18 @@ def _is_valid_matrix_section(text: str) -> bool:
     normalized = str(text or "").strip()
     if not normalized:
         return False
-    return "## 3." in normalized and "|" in normalized
+    return "## 3." in normalized and "| Paper |" in normalized
+
+
+def _ensure_matrix_section(papers: list[dict], matrix_section: str | None) -> str | None:
+    if len(papers) < MIN_PAPERS_FOR_COMPARISON:
+        return None
+    if _is_valid_matrix_section(str(matrix_section or "")):
+        return matrix_section
+    print("[Cache] Matrix section missing or invalid after parallel run, forcing fallback.")
+    llm_fast = _make_llm(deep=False)
+    rebuilt = render_methodology_matrix(papers, llm_fast)
+    return rebuilt if _is_valid_matrix_section(rebuilt) else rebuilt
 
 
 def _run_report_agent(
@@ -171,6 +182,7 @@ def run_cached_parallel_agents_impl(
             report = fut_report.result()
             gaps_data = fut_gaps.result()
             matrix_section = fut_matrix.result()
+            matrix_section = _ensure_matrix_section(papers, matrix_section)
     finally:
         delete_cache(cache)
 
