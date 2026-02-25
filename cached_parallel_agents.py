@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from agent_prompts import get_gaps_prompt, get_matrix_prompt, get_report_prompt
 from cache_manager import build_shared_cache, delete_cache, make_model_from_cache
-from config import DAYS_BACK, DOMAIN, GEMINI_MODEL_FAST, MIN_PAPERS_FOR_COMPARISON
+from config import DAYS_BACK, DOMAIN, GEMINI_MODEL_FAST
 from report_generator import (
     GAPS_USER_TEMPLATE,
     REPORT_USER_TEMPLATE,
@@ -86,8 +86,6 @@ def _is_valid_matrix_section(text: str) -> bool:
 
 
 def _ensure_matrix_section(papers: list[dict], matrix_section: str | None) -> str | None:
-    if len(papers) < MIN_PAPERS_FOR_COMPARISON:
-        return None
     if _is_valid_matrix_section(str(matrix_section or "")):
         return matrix_section
     print("[Cache] Matrix section missing or invalid after parallel run, forcing fallback.")
@@ -136,8 +134,6 @@ def _run_gaps_agent(papers: list[dict], cache, domain: str) -> dict:
 
 
 def _run_matrix_agent(papers: list[dict], cache) -> str | None:
-    if len(papers) < MIN_PAPERS_FOR_COMPARISON:
-        return None
     if cache is not None:
         try:
             model = make_model_from_cache(cache, get_matrix_prompt())
