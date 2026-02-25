@@ -8,5 +8,4 @@ chromadb
 pydantic
 python-dotenv
 requests
-paperswithcode-client
 google-generativeai>=0.7.0
