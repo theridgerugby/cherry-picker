@@ -4,6 +4,7 @@ import html
 import os
 import random
 import re
+from urllib.parse import urlparse
 from urllib.parse import quote as url_quote
 
 import streamlit as st
@@ -22,6 +23,26 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+
+def _should_open_about_page() -> bool:
+    requested_page = str(st.query_params.get("page", "")).strip().lower()
+    if requested_page == "about":
+        return True
+
+    current_url = st.context.url or ""
+    if not current_url:
+        return False
+
+    path = urlparse(current_url).path.rstrip("/").lower()
+    if not path:
+        return False
+
+    return path.split("/")[-1] == "about"
+
+
+if _should_open_about_page():
+    st.switch_page("pages/about.py")
 
 # â”€â”€ Movie quotes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -687,7 +708,7 @@ st.markdown(
 <div class="top-navbar">
   <div class="nav-brand">&#x1F352; Cherry Picker</div>
   <div class="nav-actions">
-    <a class="nav-link" href="about" target="_self">About</a>
+    <a class="nav-link" href="/?page=about" target="_self">About</a>
     <a class="nav-link" href="https://github.com/theridgerugby/cherry-picker" target="_blank" rel="noopener noreferrer">GitHub</a>
   </div>
 </div>

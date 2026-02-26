@@ -212,8 +212,8 @@ st.markdown(
 <div class="top-navbar">
   <div class="nav-brand">🍒 Cherry Picker</div>
   <div class="nav-actions">
-    <a class="nav-link" href="." target="_self">Home</a>
-    <a class="nav-link" href="about" target="_self"
+    <a class="nav-link" href="/" target="_self">Home</a>
+    <a class="nav-link" href="/?page=about" target="_self"
        style="color: var(--color-text) !important; font-weight: 600;">About</a>
     <a class="nav-link" href="https://github.com/theridgerugby/cherry-picker"
        target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -227,7 +227,7 @@ st.markdown(
     """
 <div class="about-container">
 
-  <a class="about-back" href="." target="_self">← Cherry Picker</a>
+  <a class="about-back" href="/" target="_self">← Cherry Picker</a>
 
   <div class="about-title">About this project</div>
 
