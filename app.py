@@ -56,6 +56,8 @@ MOVIE_QUOTES = [
 st.markdown(
     """
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
     --color-primary: #2563EB;
     --color-text: #111827;
@@ -65,8 +67,8 @@ st.markdown(
 }
 
 * {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
-                 "Segoe UI", Helvetica, Arial, sans-serif !important;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 Helvetica, Arial, sans-serif !important;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -226,7 +228,7 @@ a {
     font-weight: 600;
     letter-spacing: 0.8px;
     text-transform: uppercase;
-    color: var(--color-text-secondary) !important;
+    color: var(--color-text) !important;
 }
 
 .explore-label {
