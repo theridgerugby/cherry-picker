@@ -2,11 +2,10 @@
 
 import re
 
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from config import ARXIV_CATEGORY_MAP
-
 
 # Query generation is a simple, high-frequency task — use a lightweight model
 # regardless of what the main pipeline is configured to use.
@@ -53,6 +52,9 @@ Full arXiv category reference:
   math.NA = Numerical Analysis
 
 DISCIPLINE DETECTION RULES (apply in order):
+0. If the topic is astrophysics/astronomy/cosmology (e.g., galaxies, exoplanets,
+   black holes, gravitational waves, star formation) -> use astro-ph categories
+   (astro-ph.ga, astro-ph.co, astro-ph.he, astro-ph.im)
 1. If the topic involves materials, coatings, surfaces, polymers, alloys,
    nanostructures, or chemical properties -> use cond-mat.mtrl-sci and/or physics.app-ph
 2. If the topic involves biology, medicine, proteins, cells -> use q-bio categories
@@ -73,6 +75,11 @@ Query construction rules:
 - Do NOT include date ranges
 
 Examples:
+Input: "astrophysics signals"
+Output: (ti:astrophysics OR abs:cosmology OR abs:"gravitational wave"
+  OR abs:galaxy OR abs:exoplanet OR abs:"star formation")
+  AND (cat:astro-ph.ga OR cat:astro-ph.co OR cat:astro-ph.he OR cat:astro-ph.im)
+
 Input: "anti-ice coating"
 Output: (ti:"anti-ice" OR ti:icephobic OR ti:"ice adhesion"
   OR abs:"superhydrophobic") AND (cat:cond-mat.mtrl-sci OR cat:physics.app-ph)
@@ -152,6 +159,23 @@ def _rule_based_query_override(raw_input: str) -> str | None:
             '(ti:"anti-ice" OR ti:icephobic OR ti:"ice adhesion" '
             'OR abs:"superhydrophobic" OR abs:"anti-icing") '
             'AND (cat:cond-mat.mtrl-sci OR cat:physics.app-ph OR cat:cond-mat.soft)'
+        )
+
+    astrophysics_markers = [
+        "astrophysics",
+        "astronomy",
+        "cosmology",
+        "galaxy",
+        "exoplanet",
+        "black hole",
+        "gravitational wave",
+        "star formation",
+    ]
+    if any(marker in topic for marker in astrophysics_markers):
+        return (
+            '(ti:astrophysics OR abs:cosmology OR abs:"gravitational wave" '
+            'OR abs:galaxy OR abs:exoplanet OR abs:"star formation") '
+            'AND (cat:astro-ph.ga OR cat:astro-ph.co OR cat:astro-ph.he OR cat:astro-ph.im)'
         )
     return None
 

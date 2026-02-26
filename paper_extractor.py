@@ -249,6 +249,103 @@ VALID_APPROACHES = [
 ]
 
 
+_DL_MARKERS = (
+    "transformer",
+    "cnn",
+    "neural network",
+    "graph neural",
+    "gnn",
+    "diffusion",
+    "resnet",
+    "vision transformer",
+    "lstm",
+    "autoencoder",
+    "neural ode",
+)
+_CLASSICAL_MARKERS = (
+    "xgboost",
+    "gbm",
+    "gradient boosting",
+    "random forest",
+    "k-nn",
+    "knn",
+    "svm",
+    "symbolic regression",
+    "bayesian",
+    "gaussian process",
+    "least squares",
+    "ensemble learning",
+)
+_SIMULATION_MARKERS = (
+    "n-body",
+    "hydrodynamic simulation",
+    "numerical simulation",
+    "monte carlo",
+    "finite element",
+    "fem",
+    "cfd",
+    "simulation",
+)
+_THEORY_MARKERS = (
+    "theorem",
+    "proof",
+    "convergence",
+    "closed-form",
+    "analytical derivation",
+    "error bound",
+)
+
+
+def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
+    return any(marker in text for marker in markers)
+
+
+def _normalize_approach_type(extracted: dict, paper: dict) -> None:
+    """
+    Deterministically de-bias approach labels when the LLM overuses "deep_learning".
+    Only remap when textual evidence is strong.
+    """
+    mm = extracted.get("methodology_matrix")
+    if not isinstance(mm, dict):
+        return
+
+    approach = str(mm.get("approach_type", "")).strip()
+    if approach not in VALID_APPROACHES:
+        mm["approach_type"] = "hybrid"
+        return
+
+    parts = [
+        str(paper.get("title", "") or ""),
+        str(paper.get("abstract", "") or ""),
+        str(extracted.get("method_summary", "") or ""),
+        str(extracted.get("problem_statement", "") or ""),
+        str(mm.get("model_architecture", "") or ""),
+        str(mm.get("key_baseline_compared_to", "") or ""),
+        " ".join(extracted.get("method_keywords", []) or []),
+    ]
+    text = " ".join(parts).lower()
+    modalities = {str(m).lower() for m in (mm.get("data_modality") or [])}
+
+    has_dl = _contains_any(text, _DL_MARKERS)
+    has_classical = _contains_any(text, _CLASSICAL_MARKERS)
+    has_sim = _contains_any(text, _SIMULATION_MARKERS)
+    has_theory = _contains_any(text, _THEORY_MARKERS)
+
+    if approach == "deep_learning":
+        if has_classical and not has_dl:
+            mm["approach_type"] = "statistical"
+        elif has_classical and has_dl:
+            mm["approach_type"] = "hybrid"
+        elif has_sim and not has_dl:
+            mm["approach_type"] = "simulation"
+        elif "none (theoretical)" in modalities and has_theory and not has_dl:
+            mm["approach_type"] = "theoretical"
+        return
+
+    if approach == "statistical" and has_dl and has_classical:
+        mm["approach_type"] = "hybrid"
+
+
 def _classify_domain_relevance(paper: dict, domain: str, llm_fast) -> dict:
     default = {
         "relevance_score": 1,
@@ -391,12 +488,9 @@ def extract_paper_info(
         )
         extracted = PaperExtractionSchema.model_validate(extracted_raw).model_dump()
 
-        # Guardrail: enforce controlled approach labels to avoid hallucinated categories.
+        # Guardrail: enforce controlled approach labels and de-bias overuse of deep_learning.
+        _normalize_approach_type(extracted, paper)
         mm = extracted.get("methodology_matrix")
-        if isinstance(mm, dict):
-            approach = str(mm.get("approach_type", "")).strip()
-            if approach not in VALID_APPROACHES:
-                mm["approach_type"] = "hybrid"
 
         # Deterministic repository extraction pipeline:
         # PWC(arXiv id) -> arXiv metadata -> PDF/Tex -> normalize/validate -> score/rank.
