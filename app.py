@@ -209,7 +209,7 @@ a {
 }
 
 .feature-chip .label {
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.6;
     font-weight: 600;
     color: var(--color-text) !important;
