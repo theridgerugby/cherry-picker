@@ -6,7 +6,6 @@ import arxiv
 
 from config import ARXIV_QUERY, DAYS_BACK, MAX_PAPERS
 
-
 # Intent-based adaptive window config.
 INTENT_CONFIG = {
     "latest": {"min_papers": 5, "start_days": 14, "max_days": 60, "step": 14},
@@ -19,7 +18,7 @@ def _fetch_from_arxiv(query: str, days: int, max_results: int = 100) -> list[dic
     """
     Fetch arXiv papers submitted within the last `days` days.
     """
-    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
+    cutoff = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
 
     client = arxiv.Client()
     search = arxiv.Search(
@@ -204,6 +203,31 @@ def fetch_papers_adaptive(
 
     # Final check - may have exited loop without meeting target.
     target_met = len(papers) >= min_papers
+
+    # If still below target (even with non-zero hits), try one recall-oriented
+    # fallback pass at the final window. This fixes narrow category filters that
+    # under-recall domains like biology/ocean acoustics.
+    if not target_met:
+        final_days = min(days, max_days)
+        best_query = arxiv_query
+        best_papers = papers
+        fallback_candidates = _build_recall_fallback_queries(arxiv_query)
+        for idx, fallback_query in enumerate(fallback_candidates, start=1):
+            if fallback_query == arxiv_query:
+                continue
+            print(f"[Fetcher] Final fallback #{idx}: {fallback_query}")
+            fallback_papers = _fetch_from_arxiv(fallback_query, final_days)
+            print(f"[Fetcher] Final fallback #{idx} -> {len(fallback_papers)} papers")
+            if len(fallback_papers) > len(best_papers):
+                best_query = fallback_query
+                best_papers = fallback_papers
+            if len(fallback_papers) >= min_papers:
+                break
+
+        if best_query != arxiv_query:
+            arxiv_query = best_query
+            papers = best_papers
+            target_met = len(papers) >= min_papers
 
     if not target_met:
         print(
