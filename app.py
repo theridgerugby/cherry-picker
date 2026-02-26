@@ -843,11 +843,6 @@ intent = _INTENT_MAP[time_window]
 st.markdown('<div class="spacer-24"></div>', unsafe_allow_html=True)
 
 # Usage reminder shown before analysis starts.
-st.caption(
-    "This tool is only designed to help you find papers you are interested in; "
-    "you still have to read the papers yourself."
-)
-
 # Analyze button (full width)
 analyze_clicked = st.button(
     "Analyze",
