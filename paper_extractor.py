@@ -20,8 +20,8 @@ class MethodologyMatrixSchema(BaseModel):
 
     approach_type: str = Field(
         description=(
-            "One of: convex_optimization | greedy_algorithm | deep_learning | statistical | "
-            "hybrid | theoretical | experimental | simulation | experimental_ml"
+            "One of: convex_optimization | greedy_algorithm | deep_learning | classical_ml | "
+            "statistical | hybrid | theoretical | experimental | simulation | experimental_ml"
         )
     )
     model_architecture: str | None = Field(
@@ -145,8 +145,9 @@ Rules:
   - Numerical simulation (CFD, MD, FEM) without ML -> "simulation"
   - ML model trained on experimental or simulation data -> "experimental_ml"
   - Pure mathematical derivation or proof -> "theoretical"
-  - Statistical analysis of measured data (no prediction model) -> "statistical"
-  - ML/DL model trained on digital datasets -> "deep_learning"
+  - Statistical analysis, curve fitting, uncertainty estimation, or inference without a predictive learning model -> "statistical"
+  - Non-neural predictive ML such as XGBoost, random forest, SVM, k-NN, symbolic regression, or classical ensembles -> "classical_ml"
+  - Neural models such as CNNs, Transformers, GNNs, diffusion models, autoencoders, or neural ODEs -> "deep_learning"
   - Combination of fundamentally different paradigms -> "hybrid"
 
 - industrial_readiness_score (int 1-5):
@@ -164,7 +165,7 @@ Rules:
     NOTE: Do NOT penalize materials papers for lacking open-source code.
     A detailed fabrication protocol is the equivalent reproducibility signal.
 
-  IF approach_type is "experimental_ml" or any ML-dominant type:
+  IF approach_type is "experimental_ml", "deep_learning", "classical_ml", or any ML-dominant type:
     1 = Pure theoretical contribution, no empirical validation
     2 = Validated on synthetic or toy datasets only
     3 = Validated on real-world data, no open-source release
@@ -239,6 +240,7 @@ VALID_APPROACHES = [
     "convex_optimization",
     "greedy_algorithm",
     "deep_learning",
+    "classical_ml",
     "statistical",
     "hybrid",
     "theoretical",
@@ -333,13 +335,17 @@ def _normalize_approach_type(extracted: dict, paper: dict) -> None:
 
     if approach == "deep_learning":
         if has_classical and not has_dl:
-            mm["approach_type"] = "statistical"
+            mm["approach_type"] = "classical_ml"
         elif has_classical and has_dl:
             mm["approach_type"] = "hybrid"
         elif has_sim and not has_dl:
             mm["approach_type"] = "simulation"
         elif "none (theoretical)" in modalities and has_theory and not has_dl:
             mm["approach_type"] = "theoretical"
+        return
+
+    if approach == "statistical" and has_classical and not has_dl:
+        mm["approach_type"] = "classical_ml"
         return
 
     if approach == "statistical" and has_dl and has_classical:

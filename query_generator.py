@@ -41,6 +41,12 @@ Full arXiv category reference:
   physics.flu-dyn   = Fluid Dynamics
   quant-ph          = Quantum Physics
 
+  --- Astrophysics ---
+  astro-ph.ga = Astrophysics of Galaxies
+  astro-ph.co = Cosmology and Nongalactic Astrophysics
+  astro-ph.he = High Energy Astrophysical Phenomena
+  astro-ph.im = Instrumentation and Methods for Astrophysics
+
   --- Life Sciences ---
   q-bio.BM = Biomolecules
   q-bio.CB = Cell Behavior
@@ -68,7 +74,8 @@ CRITICAL RULE: Never force CS/ML categories onto non-CS topics.
 "anti-ice coating" is materials science -> use cond-mat.mtrl-sci, NOT cs.LG.
 
 Query construction rules:
-- Always include at least one cat: filter matching the detected discipline
+- Prefer at least one cat: filter matching the detected discipline
+- If the topic is broad and category filters would sharply reduce recall, use a broader query without cat: filters
 - Use ti: for specific technical terms (high precision)
 - Use abs: for broader concept terms (higher recall)
 - Keep total query under 300 characters

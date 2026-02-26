@@ -54,7 +54,7 @@ def _make_llm(deep: bool = False) -> ChatGoogleGenerativeAI:
 
 # ── Prompt 3：报告生成（含防幻觉指令）────────────────────────────────────────
 
-REPORT_SYSTEM_PROMPT = """You are a senior AI/signal-processing research analyst.
+REPORT_SYSTEM_PROMPT = """You are a senior research analyst.
 You will synthesize a set of recent academic paper summaries into a structured comparative report in Markdown.
 
 ANTI-HALLUCINATION RULES (CRITICAL — follow these strictly):
