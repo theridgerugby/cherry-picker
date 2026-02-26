@@ -56,7 +56,7 @@ def _render_about_inline_fallback() -> None:
         """
 <style>
 .about-container {
-    max-width: 620px;
+    max-width: 920px;
     margin: 80px auto 64px;
     padding: 0 24px;
 }
@@ -191,39 +191,10 @@ def _render_about_inline_fallback() -> None:
 
   <div class="about-section">
     <div class="about-section-label">Lessons learned</div>
-
-    <div class="about-lesson">
-      <div class="about-lesson-num">01</div>
-      <div class="about-lesson-body">
-        <strong>Context is everything.</strong>
-        When working with multiple LLMs, you have to keep their context updated.
-        If you brainstorm a feature with Claude, it doesn't automatically know
-        what Codex just wrote, which can eventually lead to code conflicts.
-        Don't forget to give them the most up-to-date files.
-      </div>
-    </div>
-
-    <div class="about-lesson">
-      <div class="about-lesson-num">02</div>
-      <div class="about-lesson-body">
-        <strong>Force a plan before you build.</strong>
-        LLMs are generally good at writing code but rarely delete old code,
-        which leaves you with a massive chunk of dead code stacked in your
-        folder. Before letting the AI implement a feature, force it to generate
-        a <code>plan.md</code> that explicitly lists what will be added and
-        what will be removed.
-      </div>
-    </div>
-
-    <div class="about-lesson">
-      <div class="about-lesson-num">03</div>
-      <div class="about-lesson-body">
-        <strong>Don't use an LLM if a library can do the job.</strong>
-        LLMs are inherently unstable and you can't always trust them to get it
-        right. I wasted time trying to get Gemini to extract GitHub links until
-        I realized I could just write a deterministic file that pulls from
-        Papers With Code, PDF regex, and arXiv metadata. Keep it simple.
-      </div>
+    <div class="about-body">
+      <p><strong>01. Context is everything.</strong> When working with multiple LLMs, you have to keep their context updated. If you brainstorm a feature with Claude, it doesn't automatically know what Codex just wrote, which can eventually lead to code conflicts. Don't forget to give them the most up-to-date files.</p>
+      <p><strong>02. Force a plan before you build.</strong> LLMs are generally good at writing code but rarely delete old code, which leaves you with a massive chunk of dead code stacked in your folder. Before letting the AI implement a feature, force it to generate a <code>plan.md</code> that explicitly lists what will be added and what will be removed.</p>
+      <p><strong>03. Don't use an LLM if a library can do the job.</strong> LLMs are inherently unstable and you can't always trust them to get it right. I wasted time trying to get Gemini to extract GitHub links until I realized I could just write a deterministic file that pulls from Papers With Code, PDF regex, and arXiv metadata. Keep it simple.</p>
     </div>
   </div>
 
@@ -241,7 +212,7 @@ def _render_about_inline_fallback() -> None:
   </div>
 </div>
 
-<div style="max-width:620px; margin:0 auto; padding:0 24px;">
+<div style="max-width:920px; margin:0 auto; padding:0 24px;">
   <div class="footer">
     <span>&copy; 2026 Cherry Picker &middot; Built with LangChain &amp; Gemini</span>
     <span>Made for DBW Lab</span>
