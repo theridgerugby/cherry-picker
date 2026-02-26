@@ -687,7 +687,7 @@ st.markdown(
 <div class="top-navbar">
   <div class="nav-brand">&#x1F352; Cherry Picker</div>
   <div class="nav-actions">
-    <a class="nav-link" href="/about" target="_self">About</a>
+    <a class="nav-link" href="about" target="_self">About</a>
     <a class="nav-link" href="https://github.com/theridgerugby/cherry-picker" target="_blank" rel="noopener noreferrer">GitHub</a>
   </div>
 </div>

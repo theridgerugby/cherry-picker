@@ -212,8 +212,8 @@ st.markdown(
 <div class="top-navbar">
   <div class="nav-brand">🍒 Cherry Picker</div>
   <div class="nav-actions">
-    <a class="nav-link" href="/" target="_self">Home</a>
-    <a class="nav-link" href="/about" target="_self"
+    <a class="nav-link" href="." target="_self">Home</a>
+    <a class="nav-link" href="about" target="_self"
        style="color: var(--color-text) !important; font-weight: 600;">About</a>
     <a class="nav-link" href="https://github.com/theridgerugby/cherry-picker"
        target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -227,7 +227,7 @@ st.markdown(
     """
 <div class="about-container">
 
-  <a class="about-back" href="/" target="_self">← Cherry Picker</a>
+  <a class="about-back" href="." target="_self">← Cherry Picker</a>
 
   <div class="about-title">About this project</div>
 
@@ -235,7 +235,7 @@ st.markdown(
   <div class="about-section">
     <div class="about-section-label">Why I built this</div>
     <div class="about-body">
-      I built this because I'm a freshman who wants to look at as many fields
+      I built this because I'm a university freshman who wants to look at as many fields
       as possible to figure out what to do with life. The best way to get a
       feel for a field is to read its research papers, so I came up with the
       idea to build an AI agent that retrieves recent papers to quickly map out
