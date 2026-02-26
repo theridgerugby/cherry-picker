@@ -749,7 +749,7 @@ def _ensure_summary_table_section(report_text: str, papers: list[dict]) -> str:
     if match:
         if _summary_section_has_data_rows(match.group(0)):
             return report_text
-        return section_pattern.sub(fallback_section, report_text, count=1)
+        return section_pattern.sub(lambda _m: fallback_section, report_text, count=1)
 
     return report_text.rstrip() + "\n\n" + fallback_section + "\n"
 

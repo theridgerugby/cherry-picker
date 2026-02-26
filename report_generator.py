@@ -547,11 +547,12 @@ def inject_section_four(report_text: str, section_text: str) -> str:
 
     sec4_pattern = re.compile(r"## 4\..*?(?=\n## |\Z)", re.DOTALL)
     if sec4_pattern.search(report_text):
-        return sec4_pattern.sub(section_text, report_text)
+        return sec4_pattern.sub(lambda _m: section_text, report_text)
 
     sec5_pattern = re.compile(r"(?=^## 5\.)", re.MULTILINE)
     if sec5_pattern.search(report_text):
-        return sec5_pattern.sub(section_text + "\n\n", report_text, count=1)
+        insert_text = section_text + "\n\n"
+        return sec5_pattern.sub(lambda _m: insert_text, report_text, count=1)
 
     return report_text.rstrip() + "\n\n" + section_text + "\n"
 
@@ -822,7 +823,7 @@ def inject_summary_table(report_text: str, papers: list[dict]) -> str:
     table_section = render_summary_table(papers)
     sec6_pattern = re.compile(r"## 6\. Summary Table.*?(?=\n## |\Z)", re.DOTALL)
     if sec6_pattern.search(report_text):
-        return sec6_pattern.sub(table_section, report_text)
+        return sec6_pattern.sub(lambda _m: table_section, report_text)
     return report_text.rstrip() + "\n\n" + table_section + "\n"
 
 
