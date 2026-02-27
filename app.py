@@ -263,7 +263,7 @@ st.markdown(
     --color-text-secondary: #6B7280;
     --color-border: rgba(0,0,0,0.08);
     --color-surface: rgba(255,255,255,0.72);
-    --layout-max-width: 1040px;
+    --layout-max-width: 1280px;
 }
 
 * {
