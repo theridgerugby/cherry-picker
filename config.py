@@ -21,7 +21,7 @@ GEMINI_MODEL_FAST = "gemini-flash-lite-latest"
 # Backward-compat alias for code paths that still import GEMINI_MODEL_LITE.
 GEMINI_MODEL_LITE = GEMINI_MODEL_FAST
 # Deep model：用于跨论文推理（趋势分析、间隙推断）— 允许 thinking
-GEMINI_MODEL = "gemini-2.5-pro"
+GEMINI_MODEL = "gemini-3-flash-preview"
 # Thinking token 预算（仅对 thinking model 有效）
 # 越低 = 越快；建议平衡点 1024–4096；设为 0 = 禁用 thinking
 THINKING_BUDGET = 2048

@@ -215,8 +215,26 @@ _DOMAIN_CATEGORY_PATTERNS = [
             "spectroscopy",
             "redshift",
             "telescope",
+            "gravitational wave",
+            "pulsar",
+            "supernova",
+            "neutron star",
+            "black hole",
+            "exoplanet",
+            "radio astronomy",
+            "interferometry",
         ],
-        ["astro-ph.ga", "astro-ph.co", "astro-ph.im", "astro-ph.he"],
+        [
+            "astro-ph.ga",
+            "astro-ph.co",
+            "astro-ph.im",
+            "astro-ph.he",
+            "astro-ph.ep",
+            "astro-ph.sr",
+            "gr-qc",
+            "hep-ph",
+            "hep-th",
+        ],
     ),
     (
         ["climate", "weather", "atmospheric", "ocean", "fluid", "aerodynamic"],
@@ -327,9 +345,10 @@ def score_paper_credibility(
     breakdown["recency"] = recency_score
 
     # 5) Abstract richness score (+15)
+    # arXiv abstracts average 300-600 chars; 400 chars is a substantive abstract.
     abstract_score = 0
     abstract = str(paper.get("abstract", "") or "")
-    if len(abstract) > 1500:
+    if len(abstract) > 400:
         abstract_score = 15
 
     breakdown["abstract_length"] = abstract_score

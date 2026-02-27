@@ -99,8 +99,13 @@ Report structure (follow exactly, do not add or remove sections):
  3. LAST paper: highest theoretical_depth among core-domain papers, for readers
     who want the deepest technical treatment.
  For each paper include:
- - Paper number and title in bold
- - First author and institution (format: "Author et al., Institution")
+ - Title in bold only (no "Paper N:" prefix - the list number is sufficient)
+ - First author only, followed by institution in parentheses if and only if
+   the institution is explicitly present in the provided paper data.
+   If institution data is absent or unclear, write only the author name.
+   NEVER write "Affiliation not provided", "Unknown", or any placeholder.
+   Format when institution known: "Author et al. (Institution)"
+   Format when institution unknown: "Author et al."
  - One sentence of justification citing its unique contribution
  Never recommend papers with is_core_domain=false.
  Never recommend more than 5 papers regardless of the total paper count.]
@@ -170,6 +175,16 @@ Rules:
 - For a small paper set (2-4 papers), 1-3 well-evidenced gaps is acceptable.
   A short list of real gaps is better than a long list of fabricated ones.
 - Each gap must be logically distinct.
+- CAUSAL VALIDITY TEST (mandatory before finalizing any gap):
+    Ask: "Is there a direct physical, mathematical, or experimental mechanism
+    by which progress in Paper A would REQUIRE or ENABLE progress in Paper B?"
+    If the only link is shared vocabulary (e.g., both use the word "surface",
+    "signal", or "structure" in unrelated contexts), the gap is invalid.
+    Discard it and find a real methodological tension within papers that share
+    the same phenomenon, measurement regime, or theoretical framework.
+- SELF-CHECK: Read your gap_title and description aloud. If a domain expert
+    would say "these two things have nothing to do with each other physically",
+    discard the gap.
 - No markdown fences, no explanations outside JSON."""
 
 GAPS_DOMAIN_SPECIFICITY_RULE_TEMPLATE = """DOMAIN SPECIFICITY RULE (CRITICAL):
@@ -676,6 +691,41 @@ def _build_bibtex(paper: dict) -> str:
     )
 
 
+def _strip_paper_n_labels(text: str) -> str:
+    """
+    Remove 'Paper N:' or 'Paper N -' prefixes inside bold spans.
+    Example: '**Paper 3: Some Title**' -> '**Some Title**'.
+    """
+    import re
+
+    return re.sub(
+        r"(\*\*)Paper\s+\d+[:\-\u2013\u2014]?\s*",
+        r"\1",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
+def _strip_affiliation_placeholders(text: str) -> str:
+    """
+    Remove LLM-generated affiliation placeholders from user-facing output.
+    """
+    import re
+
+    patterns = [
+        r",?\s*\(Affiliation not provided\)",
+        r",?\s*\(affiliation not provided\)",
+        r",?\s*\(Affiliation unknown\)",
+        r",?\s*\(affiliation unknown\)",
+        r",?\s*\(Unknown\)",
+        r",?\s*Affiliation not provided",
+        r",?\s*affiliation not provided",
+    ]
+    for pattern in patterns:
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+    return text
+
+
 def enhance_reading_order(report_text: str, papers: list[dict]) -> str:
     """
     在 Section 5 (Recommended Reading Order) 中，为每篇论文注入：
@@ -714,6 +764,8 @@ def enhance_reading_order(report_text: str, papers: list[dict]) -> str:
         return report_text
 
     sec5_original = sec5_match.group(0)
+    sec5_original = _strip_paper_n_labels(sec5_original)
+    sec5_original = _strip_affiliation_placeholders(sec5_original)
     sec5_lines = sec5_original.splitlines(keepends=True)
 
     # 识别条目行：以 "N. " 或 "**Title**" 开头的行
@@ -870,6 +922,29 @@ Do NOT summarize individual papers. Only discuss differences.
 Do NOT invent any information not present in the matrix."""
 
 
+def _restore_truncated_titles(matrix_text: str, papers: list[dict]) -> str:
+    """
+    Scan a markdown table for truncated paper titles and restore them.
+    A cell is considered truncated if it ends with '...' and matches the
+    beginning of a known title.
+    """
+    import re
+
+    known_titles = [str(p.get("title", "")) for p in papers if p.get("title")]
+
+    def _restore_cell(match: re.Match[str]) -> str:
+        cell = match.group(0).rstrip()
+        if not cell.endswith("..."):
+            return match.group(0)
+        prefix = cell[:-3].strip()
+        for title in known_titles:
+            if title.startswith(prefix) and len(title) > len(prefix):
+                return " " + _sanitize_md_cell(title) + " "
+        return match.group(0)
+
+    return re.sub(r"(?<=\|)[^|]{10,}?\.\.\.(?=\s*\|)", _restore_cell, matrix_text)
+
+
 def render_methodology_matrix(papers: list[dict], llm=None) -> str:
     """
     从论文数据中构建方法论对比矩阵表格 + Gemini 差异性摘要。
@@ -954,7 +1029,8 @@ def render_methodology_matrix(papers: list[dict], llm=None) -> str:
         except Exception as e:
             print(f"[Report] 对比摘要生成失败：{e}")
 
-    return "\n".join(lines)
+    raw = "\n".join(lines)
+    return _restore_truncated_titles(raw, papers)
 
 
 def _confidence_level(paper_count: int) -> str:
