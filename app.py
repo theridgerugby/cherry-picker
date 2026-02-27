@@ -263,6 +263,7 @@ st.markdown(
     --color-text-secondary: #6B7280;
     --color-border: rgba(0,0,0,0.08);
     --color-surface: rgba(255,255,255,0.72);
+    --layout-max-width: 1040px;
 }
 
 * {
@@ -281,6 +282,10 @@ st.markdown(
 }
 
 .block-container {
+    max-width: var(--layout-max-width) !important;
+    margin: 0 auto !important;
+    padding-left: 24px !important;
+    padding-right: 24px !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
 }
