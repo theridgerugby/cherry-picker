@@ -58,9 +58,13 @@ class PaperExtractionSchema(BaseModel):
     contributions: list[str] = Field(
         min_length=2, max_length=4, description="List of 2-4 concise strings, each under 20 words."
     )
-    limitations: str | None = Field(
-        default=None,
-        description="Extract only if explicitly mentioned in the abstract; otherwise null.",
+    limitations: list[str] = Field(
+        min_length=1,
+        max_length=2,
+        description=(
+            "List of 1-2 explicit or inferred limitations. "
+            "If inferred, each item should start with '[inferred] '."
+        ),
     )
     method_keywords: list[str] = Field(
         min_length=3, max_length=6, description="3-6 technical terms central to the method."
@@ -116,7 +120,18 @@ Rules:
 - Output ONLY valid JSON. No explanation, no markdown fences, no code blocks.
 - If a field cannot be determined from the abstract, use null.
 - "contributions" must be a list of 2-4 concise strings, each under 20 words.
-- "limitations" should be extracted only if explicitly mentioned in the abstract; otherwise null.
+- "limitations" should be extracted or inferred as follows:
+  1. If the abstract EXPLICITLY states a limitation, extract it verbatim (prefix: null prefix).
+  2. If NOT explicitly stated, infer 1-2 likely limitations from the method type and
+     problem scope, and prefix each with "[inferred] ".
+     Examples of valid inferences:
+     - An experimental paper testing one material type: "[inferred] Generalizability to
+       other substrate materials not demonstrated."
+     - An ML paper trained on one dataset: "[inferred] Out-of-distribution performance
+       not evaluated."
+     - A simulation paper: "[inferred] Experimental validation of simulation predictions
+       not provided."
+  3. Return as a list of strings (1-2 items). Never return null.
 - "method_keywords" should be 3-6 technical terms central to the method.
 - "industrial_readiness_score", "theoretical_depth", and "domain_specificity" must each be integers from 1 to 5.
 - For "domain_specificity": Rate how central the paper is to: {domain}
@@ -208,16 +223,21 @@ A paper is core-domain (is_core_domain=true) ONLY IF ALL THREE conditions are me
 2-4:  Uses {domain} incidentally. Primary field is clearly elsewhere.
 1:    Unrelated. {domain} appears only as a passing mention.
 
-## WORKED EXAMPLES (adapt reasoning to your specific domain)
-If domain = "Anti-Ice Coating":
-  - "Superhydrophobic nanostructure surface for icephobic applications" -> score=9, is_core_domain=true
-    (primary contribution IS anti-ice coatings)
-  - "Machine learning prediction of contact angle in laser-textured alloys" -> score=7, is_core_domain=true
-    (primary experimental system is surface wettability; directly applicable)
-  - "Acoustic manipulation of tangible icons on liquid droplet interfaces" -> score=2, is_core_domain=false
-    (primary field is HCI; droplets are only the manipulation medium)
-  - "Spontaneous epicuticular charging affects droplet dynamics on leaves" -> score=3, is_core_domain=false
-    (primary field is plant biology/ecophysiology; domain is incidental)
+## REASONING GUIDE (apply to any domain)
+When assessing a paper, reason through these questions in order:
+
+Q1: What is this paper's PRIMARY field? (Read the title, first sentence of abstract,
+    and conclusion framing - not just where it was submitted.)
+Q2: Would a researcher publishing in {domain} cite this paper for its CORE contribution?
+    (Not just as a background reference, but as a direct methodological or empirical input)
+Q3: Is {domain} the DESTINATION of this work, or just the vehicle used to demonstrate
+    something else?
+
+Scoring intuition:
+- If {domain} is the destination AND the contribution is novel within {domain} -> 8-10
+- If {domain} is the primary experimental system even though the method came from elsewhere -> 5-7
+- If {domain} appears because the authors needed some physical substrate or test medium -> 2-4
+- If {domain} is mentioned in passing or as a motivating example only -> 1
 
 Return ONLY valid JSON with no additional text:
 {{"relevance_score": <int 1-10>, "is_core_domain": <bool>, "rejection_reason": <str or null>, "detected_actual_domain": <str>}}"""

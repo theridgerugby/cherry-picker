@@ -78,7 +78,7 @@ Query construction rules:
 - If the topic is broad and category filters would sharply reduce recall, use a broader query without cat: filters
 - Use ti: for specific technical terms (high precision)
 - Use abs: for broader concept terms (higher recall)
-- Keep total query under 300 characters
+- Keep total query under 450 characters
 - Do NOT include date ranges
 
 Examples:
@@ -131,12 +131,12 @@ def _normalize_category_syntax(query: str) -> str:
     for code in _KNOWN_CATEGORIES:
         # Replace standalone category code not already prefixed by cat:
         # Example: "... OR stat.ML)" -> "... OR cat:stat.ML)"
-        pattern = re.compile(rf'(?<!cat:)(?<![\w.-]){re.escape(code)}(?![\w.-])', re.IGNORECASE)
+        pattern = re.compile(rf"(?<!cat:)(?<![\w.-]){re.escape(code)}(?![\w.-])", re.IGNORECASE)
         normalized = pattern.sub(f"cat:{code}", normalized)
     return normalized
 
 
-def _trim_query_safely(query: str, limit: int = 300) -> str:
+def _trim_query_safely(query: str, limit: int = 450) -> str:
     """
     Trim long query without cutting in the middle of a token if possible.
     """
@@ -165,7 +165,7 @@ def _rule_based_query_override(raw_input: str) -> str | None:
         return (
             '(ti:"anti-ice" OR ti:icephobic OR ti:"ice adhesion" '
             'OR abs:"superhydrophobic" OR abs:"anti-icing") '
-            'AND (cat:cond-mat.mtrl-sci OR cat:physics.app-ph OR cat:cond-mat.soft)'
+            "AND (cat:cond-mat.mtrl-sci OR cat:physics.app-ph OR cat:cond-mat.soft)"
         )
 
     astrophysics_markers = [
@@ -182,7 +182,7 @@ def _rule_based_query_override(raw_input: str) -> str | None:
         return (
             '(ti:astrophysics OR abs:cosmology OR abs:"gravitational wave" '
             'OR abs:galaxy OR abs:exoplanet OR abs:"star formation") '
-            'AND (cat:astro-ph.ga OR cat:astro-ph.co OR cat:astro-ph.he OR cat:astro-ph.im)'
+            "AND (cat:astro-ph.ga OR cat:astro-ph.co OR cat:astro-ph.he OR cat:astro-ph.im)"
         )
     return None
 
@@ -191,7 +191,7 @@ def _make_display_name(raw_input: str) -> str:
     """Derive a clean human-readable topic name from raw user input."""
     # Strip leading/trailing whitespace and convert to title case,
     # collapsing internal whitespace runs.
-    cleaned = re.sub(r'\s+', ' ', raw_input.strip())
+    cleaned = re.sub(r"\s+", " ", raw_input.strip())
     return cleaned.title()
 
 
@@ -214,10 +214,7 @@ def generate_arxiv_query(
           "user_level_detected": "beginner" | "intermediate" | "expert",
         }
     """
-    user_msg = (
-        f"Research interest: {raw_input}\n"
-        f"Pre-extracted keywords: {', '.join(keywords)}"
-    )
+    user_msg = f"Research interest: {raw_input}\nPre-extracted keywords: {', '.join(keywords)}"
 
     override_query = _rule_based_query_override(raw_input)
     if override_query:
@@ -225,10 +222,12 @@ def generate_arxiv_query(
         print("[QueryGen] Using rule-based query override.")
     else:
         try:
-            response = _query_llm.invoke([
-                SystemMessage(content=QUERY_SYSTEM_PROMPT),
-                HumanMessage(content=user_msg),
-            ])
+            response = _query_llm.invoke(
+                [
+                    SystemMessage(content=QUERY_SYSTEM_PROMPT),
+                    HumanMessage(content=user_msg),
+                ]
+            )
             arxiv_query = response.content.strip()
         except Exception as e:
             # Fallback: build a minimal query from keywords
@@ -239,10 +238,10 @@ def generate_arxiv_query(
     # Normalize category syntax to avoid malformed category clauses.
     arxiv_query = _normalize_category_syntax(arxiv_query)
 
-    # Hard cap at 300 characters as per the prompt rules
-    if len(arxiv_query) > 300:
-        arxiv_query = _trim_query_safely(arxiv_query, limit=300)
-        print("[QueryGen] Query trimmed to <= 300 characters.")
+    # Hard cap at 450 characters as per the prompt rules
+    if len(arxiv_query) > 450:
+        arxiv_query = _trim_query_safely(arxiv_query, limit=450)
+        print("[QueryGen] Query trimmed to <= 450 characters.")
 
     display_name = _make_display_name(raw_input)
 

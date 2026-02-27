@@ -75,9 +75,14 @@ Report structure (follow exactly, do not add or remove sections):
 ## 2. Key Themes & Breakthroughs
 [Group papers by shared technical themes. For each theme:
  - Name the theme as a subheading (###)
- - Describe the core idea
+ - Describe the core idea in 1-2 sentences
  - List which papers (by title) fall under this theme
- - Highlight the advancement over prior work, based only on what the summaries say]
+ - Describe the advancement over prior work based only on what the summaries say
+ - CRITICAL: If the advancement appears incremental rather than fundamental
+   (e.g. marginal metric improvements, same approach on a new dataset, minor
+   architectural variants), explicitly note this with phrasing like:
+   "This represents an incremental advance - [specific reason]."
+   Do not manufacture significance that is not supported by the evidence.]
 
 ## 4. Identified Gaps & Open Problems
 [Reserved section. Do not analyze gaps here.
@@ -85,11 +90,20 @@ Report structure (follow exactly, do not add or remove sections):
 
 ## 5. Recommended Reading Order
 [Recommend EXACTLY 3 to 5 papers maximum.
+ Selection and ordering criteria (apply in this order):
+ 1. FIRST paper: highest domain_specificity score with theoretical_depth between 2-4.
+    This gives the reader the clearest picture of the field without overwhelming formalism.
+ 2. MIDDLE papers: papers that represent methodologically distinct approaches
+    (e.g. one experimental, one ML-based, one simulation-based if available).
+    Prefer higher domain_specificity over lower theoretical_depth.
+ 3. LAST paper: highest theoretical_depth among core-domain papers, for readers
+    who want the deepest technical treatment.
  For each paper include:
  - Paper number and title in bold
  - First author and institution (format: "Author et al., Institution")
  - One sentence of justification citing its unique contribution
- Never recommend papers with is_core_domain=false.]
+ Never recommend papers with is_core_domain=false.
+ Never recommend more than 5 papers regardless of the total paper count.]
 
 ## 6. Summary Table
 [End with a markdown table with columns:
@@ -106,7 +120,7 @@ After the Summary Table, output this exact block verbatim (do not paraphrase):
   key equations · 5 = rigorous proofs with generalization bounds
 - **Domain Specificity**: 1 = domain is incidental context · 3 = methods
   designed for domain problems · 5 = primary contribution advances the domain
-- **Credibility** (0–100): venue 30 · institution 20 · category match 15 ·
+- **Credibility** (0–100): venue 40 · institution 10 · category match 15 ·
   recency 20 · abstract richness 15
 ---
 
@@ -150,26 +164,35 @@ Output ONLY valid JSON with this exact schema:
 }
 
 Rules:
-- Minimum 3 gaps, maximum 6 gaps.
+- Output ONLY gaps that are genuinely supported by cross-paper reasoning.
+  Do not manufacture gaps to meet a minimum count.
+- Target 3-6 gaps for a normal paper set (5+ papers).
+- For a small paper set (2-4 papers), 1-3 well-evidenced gaps is acceptable.
+  A short list of real gaps is better than a long list of fabricated ones.
 - Each gap must be logically distinct.
 - No markdown fences, no explanations outside JSON."""
 
 GAPS_DOMAIN_SPECIFICITY_RULE_TEMPLATE = """DOMAIN SPECIFICITY RULE (CRITICAL):
 You are analyzing papers in the domain: {domain}
 
-Your output MUST use terminology specific to this domain.
-For example:
-  - Astrophysics → use terms like: redshift, dark matter, spectroscopy,
-    interferometry, stellar populations, cosmological parameters
-  - NLP → use terms like: tokenization, perplexity, attention mechanism
-  - Computer Vision → use terms like: feature maps, anchor boxes, IoU
+MANDATORY TERMINOLOGY TEST — before finalizing each gap, apply this check:
+  Does this gap description contain AT LEAST TWO technical terms that are
+  specific to {domain} and would NOT appear in a gap analysis for a completely
+  different field (e.g. economics, NLP, or astrophysics)?
 
-FORBIDDEN generic terms (reject any gap that only uses these):
-  "scalability", "benchmark fragmentation", "real-world shift",
-  "deployment constraints", "generalization"
+  If the answer is NO — the gap is too generic. Discard it and look deeper
+  into the specific methodological tensions, material constraints, physical
+  phenomena, or measurement challenges that appear in these exact papers.
 
-If you find yourself writing a generic ML gap, discard it and look
-deeper into the specific methodological tensions in these papers."""
+Examples of domain-specific terms by field (for calibration only):
+  - Anti-Ice / Surface Science → contact angle, ice adhesion force, Cassie-Baxter state,
+    nucleation kinetics, wettability, hierarchical texture, icephobicity
+  - Astrophysics → redshift, stellar population, spectral energy distribution,
+    interferometric baseline, dark matter halo, cosmological parameter
+  - NLP → tokenization, perplexity, attention head, context window, hallucination rate
+  - Computer Vision → feature pyramid, anchor box, IoU threshold, backbone network
+
+Your gaps must read as if written by a domain expert, not a generalist AI."""
 
 GAPS_USER_TEMPLATE = """Paper Summaries (JSON):
 {paper_summaries}

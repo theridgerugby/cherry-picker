@@ -2,7 +2,6 @@
 
 import datetime
 
-
 _TOP_VENUES = [
     # CS / ML
     "neurips",
@@ -100,6 +99,60 @@ _TOP_INSTITUTIONS = [
     "johns hopkins",
     "mayo clinic",
     "wellcome",
+    # China
+    "chinese academy of sciences",
+    "cas",
+    "fudan",
+    "zhejiang university",
+    "sjtu",
+    "shanghai jiao tong",
+    "nanjing university",
+    "ustc",
+    "university of science and technology of china",
+    "sun yat-sen",
+    "harbin institute",
+    "hit",
+    "beihang",
+    # South Korea / Japan
+    "kaist",
+    "postech",
+    "snu",
+    "seoul national",
+    "yonsei",
+    "osaka university",
+    "tohoku university",
+    "nagoya university",
+    # Europe (non-UK)
+    "delft",
+    "tu delft",
+    "kth",
+    "chalmers",
+    "ecole polytechnique",
+    "sorbonne",
+    "rwth aachen",
+    "tu munich",
+    "technical university of munich",
+    "ku leuven",
+    "utrecht",
+    "leiden",
+    # India
+    "iit",
+    "indian institute of technology",
+    "isc bangalore",
+    "tifr",
+    # Canada / Australia
+    "toronto",
+    "waterloo",
+    "mcgill",
+    "ubc",
+    "melbourne",
+    "monash",
+    "anu",
+    # Additional international research labs
+    "riken",
+    "aist",
+    "csiro",
+    "kaust",
 ]
 
 _DOMAIN_CATEGORY_PATTERNS = [
@@ -214,7 +267,7 @@ def score_paper_credibility(
     breakdown = {}
     venue_detected = None
 
-    # 1) Venue score (+30)
+    # 1) Venue score (+40)
     venue_score = 0
     comment = str(paper.get("comment", "") or "").lower()
     journal_ref = str(paper.get("journal_ref", "") or "").lower()
@@ -222,13 +275,13 @@ def score_paper_credibility(
 
     for venue in _TOP_VENUES:
         if venue in venue_text:
-            venue_score = 30
+            venue_score = 40
             venue_detected = venue.upper()
             break
 
     breakdown["venue"] = venue_score
 
-    # 2) Institution score (+20)
+    # 2) Institution score (+10)
     institution_score = 0
     authors_text = " ".join(str(a) for a in paper.get("authors", [])).lower()
     affiliations_text = str(paper.get("affiliations", "") or "").lower()
@@ -236,7 +289,7 @@ def score_paper_credibility(
 
     for inst in _TOP_INSTITUTIONS:
         if inst in institution_text:
-            institution_score = 20
+            institution_score = 10
             break
 
     breakdown["institution"] = institution_score

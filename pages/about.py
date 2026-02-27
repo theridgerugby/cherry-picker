@@ -265,9 +265,9 @@ st.markdown(
   <div class="about-section">
     <div class="about-section-label">Lessons learned</div>
     <div class="about-body">
-      <p><strong>01. Context is everything.</strong> When working with multiple LLMs, you have to keep their context updated. If you brainstorm a feature with Claude, it doesn't automatically know what Codex just wrote, which can eventually lead to code conflicts. Don't forget to give them the most up-to-date files.</p>
+      <p><strong>01. Context is all they need.</strong> When working with multiple LLMs, you have to keep their context updated. If you brainstorm a feature with Claude, it doesn't automatically know what Codex just wrote, which can eventually lead to code conflicts. Don't forget to give them the most up-to-date files.</p>
       <p><strong>02. Force a plan before you build.</strong> LLMs are generally good at writing code but rarely delete old code, which leaves you with a massive chunk of dead code stacked in your folder. Before letting the AI implement a feature, force it to generate a <code>plan.md</code> that explicitly lists what will be added and what will be removed.</p>
-      <p><strong>03. Don't use an LLM if a library can do the job.</strong> LLMs are inherently unstable and you can't always trust them to get it right. I wasted time trying to get Gemini to extract GitHub links until I realized I could just write a deterministic file that pulls from Papers With Code, PDF regex, and arXiv metadata. Keep it simple.</p>
+      <p><strong>03. DO NOT rely on an LLM if an API can do the job.</strong> LLMs are inherently unstable and you can't always trust them to get it right. I wasted time trying to get Gemini to extract GitHub links until I realized I could just write a deterministic file that pulls from Papers With Code, PDF regex, and arXiv metadata. Keep the job simple.</p>
     </div>
   </div>
 
