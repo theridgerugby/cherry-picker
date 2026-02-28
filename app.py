@@ -399,7 +399,7 @@ a {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
-    width: min(1080px, calc(100vw - 64px));
+    width: min(1360px, calc(100vw - 64px));
     margin-left: 50%;
     transform: translateX(-50%);
     margin-bottom: 24px;
