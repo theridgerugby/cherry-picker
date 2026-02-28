@@ -112,7 +112,7 @@ Report structure (follow exactly, do not add or remove sections):
 
 ## 6. Summary Table
 [Output the markdown table with these columns:
- | Title (short) | First Author | Sub-domain | Method Type | Readiness/Testability | Theoretical Depth | Domain Specificity | Credibility | Key Contribution |
+ | Title (short) | First Author | Sub-domain | Method Type | Readiness/Testability | Theoretical Depth | Domain Specificity | Key Contribution |
  COLUMN ROUTING: If the papers are primarily from theoretical physics,
  cosmology, astrophysics, or pure mathematics, the 5th column should be
  "Observational Testability" (1=untestable, 3=next-gen instruments, 5=current data).
@@ -934,8 +934,6 @@ def _scoring_legend(readiness_legend_line: str) -> str:
 key equations · 5 = rigorous proofs with generalization bounds
 - **Domain Specificity**: 1 = domain is incidental context · 3 = methods \
 designed for domain problems · 5 = primary contribution advances the domain
-- **Credibility** (0–100): venue 40 · institution 10 · category match 15 · \
-recency 20 · abstract richness 15
 ---"""
 
 
@@ -946,8 +944,8 @@ def render_summary_table(papers: list[dict]) -> str:
     lines = [
         "## 6. Summary Table",
         "",
-        f"| Title (short) | First Author | Sub-domain | Method Type | {col_header} | Theoretical Depth | Domain Specificity | Credibility | Key Contribution |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        f"| Title (short) | First Author | Sub-domain | Method Type | {col_header} | Theoretical Depth | Domain Specificity | Key Contribution |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
 
     for p in papers:
@@ -963,7 +961,6 @@ def render_summary_table(papers: list[dict]) -> str:
         theory = theory if theory not in (None, "") else "—"
         specificity = specificity if specificity not in (None, "") else "—"
         author_cell = _build_author_cell(p)
-        cred_cell = _build_credibility_cell(p)
         key_contribution = _first_contribution(p)
 
         lines.append(
@@ -971,7 +968,6 @@ def render_summary_table(papers: list[dict]) -> str:
             f"| {_sanitize_md_cell(sub_domain)} "
             f"| {_sanitize_md_cell(method_type)} | {_sanitize_md_cell(industrial)} "
             f"| {_sanitize_md_cell(theory)} | {_sanitize_md_cell(specificity)} "
-            f"| {_sanitize_md_cell(cred_cell)} "
             f"| {_sanitize_md_cell(key_contribution)} |"
         )
 
