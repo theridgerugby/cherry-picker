@@ -364,6 +364,8 @@ def score_paper_credibility(
     venue_score = 0
     comment = str(paper.get("comment", "") or "").lower()
     journal_ref = str(paper.get("journal_ref", "") or "").lower()
+    title = str(paper.get("title", "") or "").lower()
+    abstract = str(paper.get("abstract", "") or "").lower()
     venue_text = f"{comment} {journal_ref}"
 
     for venue in _TOP_VENUES:
@@ -371,6 +373,18 @@ def score_paper_credibility(
             venue_score = 40
             venue_detected = venue.upper()
             break
+
+    # Fallback: if no venue found in comment/journal_ref, check if
+    # the paper mentions a known venue in its abstract or title.
+    # This gives partial credit (20 pts) — it suggests affiliation
+    # with quality work but isn't a confirmed publication.
+    if venue_score == 0:
+        secondary_text = f"{title} {abstract} {comment}"
+        for venue in _TOP_VENUES:
+            if venue in secondary_text:
+                venue_score = 20
+                venue_detected = f"{venue.upper()} (inferred)"
+                break
 
     breakdown["venue"] = venue_score
 
@@ -401,6 +415,25 @@ def score_paper_credibility(
 
     breakdown["category_match"] = category_score
 
+    # 3b) Primary category specificity bonus (+10)
+    # Rewards papers whose primary category closely matches the target domain.
+    # This adds variance that helps distinguish between papers in the same batch.
+    primary_cat_bonus = 0
+    if primary_category and relevant_cats:
+        # Exact primary category match to a domain-relevant category
+        if primary_category in relevant_cats:
+            primary_cat_bonus = 10
+        else:
+            # Partial match: same top-level group (e.g. astro-ph.* matches astro-ph.*)
+            primary_group = primary_category.split(".")[0] if "." in primary_category else primary_category
+            for rc in relevant_cats:
+                rc_group = rc.split(".")[0] if "." in rc else rc
+                if primary_group == rc_group:
+                    primary_cat_bonus = 5
+                    break
+
+    breakdown["primary_category_bonus"] = primary_cat_bonus
+
     # 4) Recency score (+20)
     recency_score = 0
     pub_date_str = paper.get("published_date", "")
@@ -422,13 +455,16 @@ def score_paper_credibility(
     # 5) Abstract richness score (+15)
     # arXiv abstracts average 300-600 chars; 400 chars is a substantive abstract.
     abstract_score = 0
-    abstract = str(paper.get("abstract", "") or "")
     if len(abstract) > 400:
         abstract_score = 15
+    elif len(abstract) > 200:
+        abstract_score = 8
 
     breakdown["abstract_length"] = abstract_score
 
     total = sum(breakdown.values())
+    # Cap at 100
+    total = min(total, 100)
     scored["credibility_score"] = total
     scored["credibility_breakdown"] = breakdown
     scored["venue_detected"] = venue_detected

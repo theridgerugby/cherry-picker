@@ -112,7 +112,11 @@ Report structure (follow exactly, do not add or remove sections):
 
 ## 6. Summary Table
 [Output the markdown table with these columns:
- | Title (short) | First Author | Sub-domain | Method Type | Industrial Readiness | Theoretical Depth | Domain Specificity | Credibility | Key Contribution |
+ | Title (short) | First Author | Sub-domain | Method Type | Readiness/Testability | Theoretical Depth | Domain Specificity | Credibility | Key Contribution |
+ COLUMN ROUTING: If the papers are primarily from theoretical physics,
+ cosmology, astrophysics, or pure mathematics, the 5th column should be
+ "Observational Testability" (1=untestable, 3=next-gen instruments, 5=current data).
+ Otherwise use "Industrial Readiness" (1=theoretical, 3=real data, 5=production).
  Fill only from the data provided.
  Immediately BEFORE the first table row (after the header separator line),
  do NOT output a legend — the legend will be injected by the rendering code.
@@ -177,6 +181,21 @@ Rules:
   progress in Paper B. Shared surface-level vocabulary ("signal", "wave",
   "structure") is not a mechanism. If you cannot name the mechanism in one
   concrete sentence, discard the gap.
+- COSMOLOGICAL EPOCH ISOLATION (mandatory for astrophysics / cosmology papers):
+  Classify each paper into one of these epochs:
+    (a) Planck / inflation / reheating (t < 10^-32 s)
+    (b) Early-universe phase transitions / baryogenesis (10^-32 s < t < 1 s)
+    (c) BBN / recombination / CMB (1 s < t < 380 kyr)
+    (d) Dark ages / cosmic dawn / reionization (380 kyr < t < 1 Gyr)
+    (e) Late-time structure formation / galaxy evolution (t > 1 Gyr)
+    (f) Purely mathematical / formal theory (no specific epoch)
+  A gap that links papers from epochs separated by more than 2 steps
+  (e.g., epoch (a) with epoch (e)) is almost certainly a forced
+  extrapolation. You MUST discard it UNLESS you can cite a concrete,
+  non-trivial physical mechanism (not just shared terminology) that
+  causally connects the two epochs within the specific models discussed
+  in the papers. "Both involve gravity" or "both concern dark matter"
+  is NOT sufficient — you must describe the actual coupling channel.
 - No markdown fences, no explanations outside JSON."""
 
 GAPS_DOMAIN_SPECIFICITY_RULE_TEMPLATE = """DOMAIN SPECIFICITY RULE (CRITICAL):
@@ -848,12 +867,69 @@ def _first_contribution(paper: dict) -> str:
     return "—"
 
 
-_SCORING_LEGEND = """\
+# ── Dynamic Schema Routing ────────────────────────────────────────────────────
+# Detect whether the paper set belongs to a pure-theory domain where
+# "Industrial Readiness" is meaningless. When it is, swap the column for a
+# domain-appropriate metric.
+
+_THEORY_DOMAIN_KEYWORDS = frozenset({
+    "cosmology", "astrophysics", "theoretical physics", "particle physics",
+    "quantum gravity", "string theory", "high energy physics", "dark matter",
+    "dark energy", "general relativity", "mathematical physics", "hep-th",
+    "hep-ph", "gr-qc", "astro-ph", "nuclear theory",
+})
+
+
+def _detect_theory_dominant_domain(papers: list[dict]) -> bool:
+    """Return True if >=60% of papers belong to a pure-theory domain."""
+    if not papers:
+        return False
+    theory_count = 0
+    for p in papers:
+        sub_domain = str(p.get("sub_domain") or "").lower()
+        primary_cat = str(p.get("primary_category") or "").lower()
+        cats = [str(c).lower() for c in (p.get("categories") or [])]
+        combined = f"{sub_domain} {primary_cat} {' '.join(cats)}"
+        mm = p.get("methodology_matrix") or {}
+        approach = str(mm.get("approach_type") or "").lower()
+        industrial = p.get("industrial_readiness_score")
+        # A paper is "pure theory" if its sub-domain or categories match, OR
+        # if its approach is "theoretical" and industrial readiness <= 1.
+        if any(kw in combined for kw in _THEORY_DOMAIN_KEYWORDS):
+            theory_count += 1
+        elif approach == "theoretical" and (industrial is None or industrial <= 1):
+            theory_count += 1
+    return theory_count / len(papers) >= 0.6
+
+
+def _readiness_column_meta(papers: list[dict]) -> tuple[str, str, str]:
+    """
+    Return (column_header, legend_entry, score_field) based on domain.
+    For theory-dominant domains: Observational Testability.
+    Otherwise: Industrial Readiness.
+    """
+    if _detect_theory_dominant_domain(papers):
+        return (
+            "Observational Testability",
+            "- **Observational Testability**: 1 = no conceivable observation "
+            "can test this · 3 = testable with next-gen instruments · "
+            "5 = already constrained by current data",
+            "industrial_readiness_score",  # reuse same field; semantic swapped
+        )
+    return (
+        "Industrial Readiness",
+        "- **Industrial Readiness**: 1 = purely theoretical · 3 = tested on real "
+        "materials or real-world data · 5 = pilot-scale / production validated",
+        "industrial_readiness_score",
+    )
+
+
+def _scoring_legend(readiness_legend_line: str) -> str:
+    return f"""\
 
 ---
 **Scoring Legend** (all scores are on a 1–5 scale unless noted):
-- **Industrial Readiness**: 1 = purely theoretical · 3 = tested on real \
-materials or real-world data · 5 = pilot-scale / production validated
+{readiness_legend_line}
 - **Theoretical Depth**: 1 = engineering recipe with no derivation · 3 = derives \
 key equations · 5 = rigorous proofs with generalization bounds
 - **Domain Specificity**: 1 = domain is incidental context · 3 = methods \
@@ -865,10 +941,12 @@ recency 20 · abstract richness 15
 
 def render_summary_table(papers: list[dict]) -> str:
     """Render Section 6 summary table from structured paper data."""
+    col_header, legend_line, score_field = _readiness_column_meta(papers)
+
     lines = [
         "## 6. Summary Table",
         "",
-        "| Title (short) | First Author | Sub-domain | Method Type | Industrial Readiness | Theoretical Depth | Domain Specificity | Credibility | Key Contribution |",
+        f"| Title (short) | First Author | Sub-domain | Method Type | {col_header} | Theoretical Depth | Domain Specificity | Credibility | Key Contribution |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
 
@@ -878,7 +956,7 @@ def render_summary_table(papers: list[dict]) -> str:
         mm = p.get("methodology_matrix") or {}
         sub_domain = p.get("sub_domain") or "—"
         method_type = mm.get("approach_type") or "—"
-        industrial = p.get("industrial_readiness_score")
+        industrial = p.get(score_field)
         theory = p.get("theoretical_depth")
         specificity = p.get("domain_specificity", p.get("relevance_to_sparse_representation"))
         industrial = industrial if industrial not in (None, "") else "—"
@@ -897,7 +975,7 @@ def render_summary_table(papers: list[dict]) -> str:
             f"| {_sanitize_md_cell(key_contribution)} |"
         )
 
-    return "\n".join(lines) + _SCORING_LEGEND
+    return "\n".join(lines) + _scoring_legend(legend_line)
 
 
 def inject_summary_table(report_text: str, papers: list[dict]) -> str:
@@ -914,12 +992,51 @@ def inject_summary_table(report_text: str, papers: list[dict]) -> str:
     return report_text.rstrip() + "\n\n" + table_section + "\n"
 
 
+def _strip_system_instructions(text: str) -> str:
+    """Remove leaked system-level prompt instructions from generated output.
+
+    Catches patterns like:
+      [System Instruction: Generate Section 3 here.]
+      [SYSTEM: ...]
+    Also removes any duplicate trailing section headings that were generated
+    after the Summary Table (Section 6) — these are byproducts of the LLM
+    re-generating content that the pipeline was supposed to inject.
+    """
+    import re
+
+    # 1. Strip any [System Instruction: ...] / [SYSTEM: ...] tags
+    text = re.sub(
+        r"\[(?:System Instruction|SYSTEM|system instruction|System)\s*:.*?\]",
+        "",
+        text,
+        flags=re.DOTALL,
+    )
+
+    # 2. Remove duplicate sections that appear AFTER Section 6.
+    #    The canonical section order is 1-2-3-4-5-6.  Anything after
+    #    Section 6 that repeats an earlier heading is leaked output.
+    sec6_match = re.search(r"(## 6\. .+?)(?=\n## |\Z)", text, re.DOTALL)
+    if sec6_match:
+        after_sec6_start = sec6_match.end()
+        before = text[:after_sec6_start]
+        after = text[after_sec6_start:]
+        # Remove any ## N. headings in the trailing section
+        after = re.sub(r"\n## \d+\..*?(?=\n## |\Z)", "", after, flags=re.DOTALL)
+        text = before + after
+
+    # 3. Strip trailing whitespace / empty lines left over
+    text = text.rstrip() + "\n"
+    return text
+
+
 def save_report(report_text: str, papers: list[dict] | None = None) -> str:
     """保存报告到 Markdown 文件（含后处理：表格修复 + 空章节隐藏 + 链接注入）
 
     Returns the fully post-processed report text so callers can keep
     in-memory state consistent with what was written to disk.
     """
+    # --- Critical: strip leaked system instructions FIRST ---
+    report_text = _strip_system_instructions(report_text)
     if papers:
         report_text = inject_summary_table(report_text, papers)
     report_text = clean_markdown_tables(report_text)
