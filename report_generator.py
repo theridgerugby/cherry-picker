@@ -111,23 +111,12 @@ Report structure (follow exactly, do not add or remove sections):
  Never recommend more than 5 papers regardless of the total paper count.]
 
 ## 6. Summary Table
-[End with a markdown table with columns:
+[Output the markdown table with these columns:
  | Title (short) | First Author | Sub-domain | Method Type | Industrial Readiness | Theoretical Depth | Domain Specificity | Credibility | Key Contribution |
- Fill only from the data provided.]
-
-After the Summary Table, output this exact block verbatim (do not paraphrase):
-
----
-**Scoring Legend** (all scores are on a 1–5 scale unless noted):
-- **Industrial Readiness**: 1 = purely theoretical · 3 = tested on real
-  materials or real-world data · 5 = pilot-scale / production validated
-- **Theoretical Depth**: 1 = engineering recipe with no derivation · 3 = derives
-  key equations · 5 = rigorous proofs with generalization bounds
-- **Domain Specificity**: 1 = domain is incidental context · 3 = methods
-  designed for domain problems · 5 = primary contribution advances the domain
-- **Credibility** (0–100): venue 40 · institution 10 · category match 15 ·
-  recency 20 · abstract richness 15
----
+ Fill only from the data provided.
+ Immediately BEFORE the first table row (after the header separator line),
+ do NOT output a legend — the legend will be injected by the rendering code.
+ Do NOT output any legend block. Just the table.]
 
 IMPORTANT: Do NOT generate a Section 3 — it will be added separately."""
 
@@ -175,16 +164,19 @@ Rules:
 - For a small paper set (2-4 papers), 1-3 well-evidenced gaps is acceptable.
   A short list of real gaps is better than a long list of fabricated ones.
 - Each gap must be logically distinct.
-- CAUSAL VALIDITY TEST (mandatory before finalizing any gap):
-    Ask: "Is there a direct physical, mathematical, or experimental mechanism
-    by which progress in Paper A would REQUIRE or ENABLE progress in Paper B?"
-    If the only link is shared vocabulary (e.g., both use the word "surface",
-    "signal", or "structure" in unrelated contexts), the gap is invalid.
-    Discard it and find a real methodological tension within papers that share
-    the same phenomenon, measurement regime, or theoretical framework.
-- SELF-CHECK: Read your gap_title and description aloud. If a domain expert
-    would say "these two things have nothing to do with each other physically",
-    discard the gap.
+- PHYSICAL SCALE TEST (mandatory before accepting any cross-paper gap):
+  Identify the characteristic physical scale of each affected paper
+  (e.g., planetary atmosphere ~10^7 m, pulsar timing ~10^20 m, cosmological
+  structure ~10^26 m, molecular bond ~10^-10 m). If the scales differ by
+  more than ~6 orders of magnitude, the papers operate in fundamentally
+  different physical regimes and cannot directly inform each other's gaps.
+  Discard the gap. A valid gap must arise from papers that share the same
+  physical regime, observational wavelength band, or mathematical framework.
+- CAUSAL MECHANISM TEST: There must be a direct physical, mathematical, or
+  experimental mechanism by which progress in Paper A would require or enable
+  progress in Paper B. Shared surface-level vocabulary ("signal", "wave",
+  "structure") is not a mechanism. If you cannot name the mechanism in one
+  concrete sentence, discard the gap.
 - No markdown fences, no explanations outside JSON."""
 
 GAPS_DOMAIN_SPECIFICITY_RULE_TEMPLATE = """DOMAIN SPECIFICITY RULE (CRITICAL):
@@ -811,10 +803,15 @@ def enhance_reading_order(report_text: str, papers: list[dict]) -> str:
     return report_text.replace(sec5_original, sec5_enhanced)
 
 
+_EMPTY_CELL_STRINGS = frozenset({"none", "null", "n/a", "na", "unknown", "-", ""})
+
+
 def _sanitize_md_cell(value) -> str:
     """Normalize markdown table cell content to keep table structure valid."""
     text = str(value if value is not None else "—")
     text = text.replace("\n", " ").replace("\r", " ").replace("|", "\\|").strip()
+    if text.lower() in _EMPTY_CELL_STRINGS:
+        return "—"
     return text or "—"
 
 
@@ -851,6 +848,21 @@ def _first_contribution(paper: dict) -> str:
     return "—"
 
 
+_SCORING_LEGEND = """\
+
+---
+**Scoring Legend** (all scores are on a 1–5 scale unless noted):
+- **Industrial Readiness**: 1 = purely theoretical · 3 = tested on real \
+materials or real-world data · 5 = pilot-scale / production validated
+- **Theoretical Depth**: 1 = engineering recipe with no derivation · 3 = derives \
+key equations · 5 = rigorous proofs with generalization bounds
+- **Domain Specificity**: 1 = domain is incidental context · 3 = methods \
+designed for domain problems · 5 = primary contribution advances the domain
+- **Credibility** (0–100): venue 40 · institution 10 · category match 15 · \
+recency 20 · abstract richness 15
+---"""
+
+
 def render_summary_table(papers: list[dict]) -> str:
     """Render Section 6 summary table from structured paper data."""
     lines = [
@@ -885,7 +897,7 @@ def render_summary_table(papers: list[dict]) -> str:
             f"| {_sanitize_md_cell(key_contribution)} |"
         )
 
-    return "\n".join(lines)
+    return "\n".join(lines) + _SCORING_LEGEND
 
 
 def inject_summary_table(report_text: str, papers: list[dict]) -> str:
@@ -902,8 +914,12 @@ def inject_summary_table(report_text: str, papers: list[dict]) -> str:
     return report_text.rstrip() + "\n\n" + table_section + "\n"
 
 
-def save_report(report_text: str, papers: list[dict] | None = None):
-    """保存报告到 Markdown 文件（含后处理：表格修复 + 空章节隐藏 + 链接注入）"""
+def save_report(report_text: str, papers: list[dict] | None = None) -> str:
+    """保存报告到 Markdown 文件（含后处理：表格修复 + 空章节隐藏 + 链接注入）
+
+    Returns the fully post-processed report text so callers can keep
+    in-memory state consistent with what was written to disk.
+    """
     if papers:
         report_text = inject_summary_table(report_text, papers)
     report_text = clean_markdown_tables(report_text)
@@ -913,6 +929,7 @@ def save_report(report_text: str, papers: list[dict] | None = None):
     with open(REPORT_OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(report_text)
     print(f"\n✅ 报告已保存至：{REPORT_OUTPUT_PATH}")
+    return report_text
 
 
 METHODOLOGY_CONTRAST_PROMPT = """You are given a methodology comparison matrix of research papers.

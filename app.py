@@ -4,8 +4,8 @@ import html
 import os
 import random
 import re
-from urllib.parse import urlparse
 from urllib.parse import quote as url_quote
+from urllib.parse import urlparse
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -221,6 +221,7 @@ def _render_about_inline_fallback() -> None:
 """,
         unsafe_allow_html=True,
     )
+
 
 # â”€â”€ Movie quotes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -1283,7 +1284,7 @@ if analyze_clicked and topic.strip():
 
         gaps_md = render_extrapolated_gaps_markdown(gaps_data)
         report = inject_section_four(report, gaps_md)
-        save_report(report, extracted)
+        report = save_report(report, extracted)
         st.write("Report generated.")
         status_box.success("Analysis complete!")
 
