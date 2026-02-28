@@ -850,14 +850,6 @@ def _build_author_cell(paper: dict) -> str:
     return f"{first_author} ({institution})" if institution else first_author
 
 
-def _build_credibility_cell(paper: dict) -> str:
-    credibility = paper.get("credibility_score")
-    if credibility is None:
-        return "—"
-    venue = paper.get("venue_detected")
-    if venue:
-        return f"{credibility}/100 ({venue})"
-    return f"{credibility}/100"
 
 
 def _first_contribution(paper: dict) -> str:

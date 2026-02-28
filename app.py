@@ -1258,9 +1258,6 @@ if analyze_clicked and topic.strip():
 
         st.write("Scoring credibility...")
         scored = [score_paper_credibility(p, display_name) for p in extracted]
-        avg_credibility = (
-            round(sum(p.get("credibility_score", 0) for p in scored) / len(scored)) if scored else 0
-        )
         for orig, sc in zip(extracted, scored, strict=False):
             orig["credibility_score"] = sc.get("credibility_score", 0)
             orig["credibility_breakdown"] = sc.get("credibility_breakdown", {})
@@ -1294,7 +1291,6 @@ if analyze_clicked and topic.strip():
         # Store results
         st.session_state["report"] = report
         st.session_state["papers"] = extracted
-        st.session_state["avg_cred"] = avg_credibility
         st.session_state["days_used"] = fetch_result["days_used"]
         st.session_state["last_query"] = {
             "topic": topic,
@@ -1346,7 +1342,7 @@ if "report" in st.session_state and st.session_state["report"]:
         unsafe_allow_html=True,
     )
 
-    # Stats row (4-column symmetric)
+    # Stats row (3-column symmetric)
     st.markdown(
         f"""
     <div class="stats-row" style="max-width:1100px; margin:24px auto;">
@@ -1357,10 +1353,6 @@ if "report" in st.session_state and st.session_state["report"]:
       <div class="stat-card">
         <div class="stat-num">{st.session_state.get("days_used", "-")}</div>
         <div class="stat-label">Days searched</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">{st.session_state.get("avg_cred", "-")}</div>
-        <div class="stat-label">Avg credibility</div>
       </div>
       <div class="stat-card">
         <div class="stat-num">{domains}</div>

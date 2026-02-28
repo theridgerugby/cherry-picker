@@ -66,8 +66,6 @@ def _slim_papers_for_report_impl(papers: list[dict]) -> list[dict]:
         slim_paper["is_core_domain"] = paper.get("is_core_domain", True)
         slim_paper["method_type"] = methodology.get("approach_type")
         slim_paper["open_source"] = methodology.get("open_source")
-        slim_paper["credibility_breakdown"] = paper.get("credibility_breakdown", {})
-        slim_paper["venue_detected"] = paper.get("venue_detected")
         slim_paper["github_url"] = (
             paper.get("github_url") if paper.get("github_url_validated") else None
         )
