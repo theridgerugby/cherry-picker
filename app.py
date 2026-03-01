@@ -1366,7 +1366,7 @@ if "report" in st.session_state and st.session_state["report"]:
 
     st.markdown('<div class="main-container report-main-container">', unsafe_allow_html=True)
     st.markdown('<div class="report-wrapper">', unsafe_allow_html=True)
-    st.markdown(report_text)
+    st.markdown(report_text, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown(_FOOTER_HTML, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
