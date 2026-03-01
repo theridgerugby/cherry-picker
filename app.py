@@ -567,9 +567,10 @@ a {
 
 .stats-row {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
-    margin: 24px 0;
+    max-width: 960px;
+    margin: 24px auto;
 }
 
 .stat-card {
@@ -1345,7 +1346,7 @@ if "report" in st.session_state and st.session_state["report"]:
     # Stats row (3-column symmetric)
     st.markdown(
         f"""
-    <div class="stats-row" style="max-width:1100px; margin:24px auto;">
+    <div class="stats-row">
       <div class="stat-card">
         <div class="stat-num">{len(papers)}</div>
         <div class="stat-label">Papers analyzed</div>
